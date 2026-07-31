@@ -1,0 +1,141 @@
+/* =============================================================
+   Куда пойти — дизайн-токены (тёмный вариант)
+   Извлечены из прототипа. Подключается в src/index.css:
+       @import "tailwindcss";
+       @import "./theme.css";
+
+   Шрифты ставятся локально, не с Google CDN:
+       npm i @fontsource/playfair-display @fontsource-variable/manrope
+   и импортируются в main.tsx:
+       import "@fontsource/playfair-display/500.css";
+       import "@fontsource-variable/manrope";
+   ============================================================= */
+
+@theme {
+  /* ---------- Фоны ---------- */
+  --color-bg-deep:      #050505;   /* внешний фон, за контентом */
+  --color-bg:           #0D0D0D;   /* основной фон приложения */
+  --color-surface-1:    #141414;   /* блок профиля, мягкие подложки */
+  --color-surface-2:    #1E1E1E;   /* карточки, поля ввода */
+  --color-surface-3:    #242424;   /* чипы, скроллбар */
+  --color-surface-4:    #2A2A2A;   /* аватары, активные чипы */
+  --color-track:        #1A1A1A;   /* дорожка сегментов и переключателей */
+
+  /* Десктопный макет темнее мобильного — значения из отдельного прототипа
+     «Куда пойти - десктоп». Мобильные поверхности не трогаем. */
+  --color-surface-d:    #161616;   /* карточки, поля, кнопки на десктопе */
+  --color-well:         #0F0F0F;   /* поле внутри карточки */
+  --color-border-4:     #2C2C2C;   /* пунктирные рамки на десктопе */
+
+  /* ---------- Границы ---------- */
+  --color-border:       #1C1C1C;   /* разделители, боковая панель */
+  --color-border-2:     #232323;   /* рамка контейнера */
+  --color-border-3:     #333333;   /* выделенные границы */
+
+  /* ---------- Текст ---------- */
+  --color-fg:           #FFFFFF;
+  --color-fg-muted:     #9A9A9A;   /* описания, подписи */
+  --color-fg-dim:       #6A6A6A;   /* надзаголовки, метаданные */
+  --color-fg-dimmer:    #5C5C5C;   /* неактивная навигация */
+  --color-fg-body:      #D4D4D4;   /* длинный текст: описание, отзыв */
+  --color-fg-faint:     #4A4A4A;   /* точки-разделители, счётчики */
+
+  /* ---------- Акцент ---------- */
+  --color-accent:       #4EE560;
+  --color-accent-hover: #8CF096;
+  --color-on-accent:    #0D0D0D;   /* текст на акцентном фоне */
+
+  /* ---------- Статусы мест ---------- */
+  --color-status-want:     #4EE560;   /* хочу сходить */
+  --color-status-visited:  #9A9A9A;   /* были */
+  --color-status-rejected: #5C5C5C;   /* не зашло */
+
+  /* ---------- Шрифты ---------- */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans:    "Manrope", Helvetica, Arial, sans-serif;
+
+  /* ---------- Радиусы ---------- */
+  --radius-field: 14px;   /* поля ввода */
+  --radius-card:  16px;   /* карточки, блоки */
+  --radius-sheet: 24px;   /* нижняя шторка */
+  --radius-pill:  999px;  /* кнопки, чипы, аватары */
+
+  /* ---------- Точки останова ---------- */
+  /* мобильный < 900px — нижняя навигация
+     десктоп  ≥ 900px — боковая панель 252px */
+  --breakpoint-desktop: 900px;
+}
+
+/* ---------- Базовые стили ---------- */
+
+@layer base {
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  a:hover { color: var(--color-accent-hover); }
+
+  /* Мобильный — скроллбар скрыт, десктоп — стилизован */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+
+  @media (min-width: 900px) {
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--color-surface-3);
+      border-radius: var(--radius-pill);
+      border: 3px solid var(--color-bg);
+    }
+  }
+}
+
+/* ---------- Утилиты из прототипа ---------- */
+
+@layer utilities {
+  /* Появление карточек */
+  @keyframes pop {
+    from { transform: scale(.96); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .animate-pop { animation: pop .22s ease-out both; }
+
+  /* Радиальное свечение за заголовком на экране входа */
+  .glow-accent {
+    background: radial-gradient(
+      closest-side,
+      rgb(78 229 96 / .30),
+      rgb(78 229 96 / .05) 65%,
+      rgb(13 13 13 / 0)
+    );
+  }
+
+  /* Заглушка «фото места» — диагональная штриховка из прототипа.
+     Остаётся, пока не подключены фото (Этап 2). */
+  .hatch    { background: repeating-linear-gradient(45deg, #202020 0 9px, #191919 9px 18px); }
+  .hatch-sm { background: repeating-linear-gradient(45deg, #262626 0 7px, #1E1E1E 7px 14px); }
+
+  /* Горизонтальные полки лент — прокрутка со снапом, полоса скрыта */
+  .rail {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+
+  /* Надзаголовок: «ТОЛЬКО ДЛЯ ДВОИХ» */
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--color-fg-dim);
+  }
+}
