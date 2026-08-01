@@ -51,6 +51,7 @@ export type Database = {
       }
       photos: {
         Row: {
+          bytes: number | null
           created_at: string
           height: number | null
           id: string
@@ -63,6 +64,7 @@ export type Database = {
           width: number | null
         }
         Insert: {
+          bytes?: number | null
           created_at?: string
           height?: number | null
           id?: string
@@ -75,6 +77,7 @@ export type Database = {
           width?: number | null
         }
         Update: {
+          bytes?: number | null
           created_at?: string
           height?: number | null
           id?: string
