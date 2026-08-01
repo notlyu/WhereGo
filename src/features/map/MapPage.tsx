@@ -62,8 +62,7 @@ export function MapPage() {
         onSelect={setSelectedId}
         me={coords}
         onError={setMapError}
-        // Стиль тайлов светлый, приложение тёмное — притемняем фильтром.
-        className="h-full w-full [filter:invert(1)_hue-rotate(180deg)_brightness(.92)_contrast(.9)_saturate(.75)]"
+        className="h-full w-full"
       />
     </Suspense>
   )

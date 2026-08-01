@@ -11,11 +11,12 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 /**
  * Тайлы OpenFreeMap: без ключа, без лимитов, без регистрации.
  *
- * Тёмного стиля у них нет, а приложение тёмное. Светлый positron
- * притемняется фильтром в CSS — это дешевле, чем держать свой стиль
- * из полутора тысяч строк JSON и следить за его совместимостью.
+ * Стиль `dark` — готовый тёмный, под цвет приложения. Раньше здесь стоял
+ * светлый positron с CSS-инверсией: он и без того почти без контраста, а
+ * после invert(1) сливался в сплошной чёрный прямоугольник. Готовый тёмный
+ * стиль решает это без фильтров.
  */
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark'
 
 /** К-2: цвет маркера по статусу. Значения — из дизайн-системы. */
 const STATUS_COLOR: Record<PlaceStatus, string> = {

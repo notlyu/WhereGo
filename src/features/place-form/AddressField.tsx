@@ -23,7 +23,10 @@ interface Props {
  * широту и долготу видно и можно стереть.
  */
 export function AddressField({ address, lat, lng, onChange, desktop = false }: Props) {
-  const [query, setQuery] = useState(address)
+  // Своей копии адреса тут нет намеренно. Раньше значение дублировалось в
+  // useState, и при правке места поле оказывалось пустым: состояние берётся
+  // один раз при монтировании, а данные места приходят позже, из form.reset.
+  // Единственный источник — форма.
   const [results, setResults] = useState<GeocodeResult[]>([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +39,7 @@ export function AddressField({ address, lat, lng, onChange, desktop = false }: P
       skipNext.current = false
       return
     }
-    if (query.trim().length < 3) {
+    if (address.trim().length < 3) {
       setResults([])
       setSearching(false)
       return
@@ -45,7 +48,7 @@ export function AddressField({ address, lat, lng, onChange, desktop = false }: P
     setSearching(true)
     setError(null)
     geocodeDebounced(
-      query,
+      address,
       (found) => {
         setResults(found)
         setSearching(false)
@@ -56,18 +59,19 @@ export function AddressField({ address, lat, lng, onChange, desktop = false }: P
         setSearching(false)
       },
     )
-  }, [query])
+  }, [address])
 
   function pick(result: GeocodeResult) {
+    // Не искать заново по только что подставленному адресу — иначе список
+    // подсказок откроется сразу после выбора.
     skipNext.current = true
-    setQuery(result.label)
     setOpen(false)
     setResults([])
     onChange({ address: result.label, lat: result.lat, lng: result.lng })
   }
 
   function clearCoords() {
-    onChange({ address: query, lat: null, lng: null })
+    onChange({ address, lat: null, lng: null })
   }
 
   const hasCoords = lat !== null && lng !== null
@@ -77,11 +81,8 @@ export function AddressField({ address, lat, lng, onChange, desktop = false }: P
       <Label hint={hasCoords ? undefined : 'необязательно'}>адрес</Label>
 
       <Input
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value)
-          onChange({ address: event.target.value, lat, lng })
-        }}
+        value={address}
+        onChange={(event) => onChange({ address: event.target.value, lat, lng })}
         onFocus={() => results.length > 0 && setOpen(true)}
         placeholder="Улица, дом — подскажем по мере ввода"
       />
