@@ -379,7 +379,7 @@ VITE_SUPABASE_ANON_KEY
 
 ### 10.5 Проверить
 
-Адрес вида `https://whereg o.pages.dev` (Cloudflare покажет точный).
+Адрес вида `https://wherego.pages.dev` (Cloudflare покажет точный).
 
 - открыть сразу `/ideas` или `/place/…` — должно открыться, а не 404.
   Если 404 — не подхватился `public/_redirects`;
