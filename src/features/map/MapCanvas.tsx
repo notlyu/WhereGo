@@ -73,6 +73,19 @@ export function MapCanvas({ places, selectedId, onSelect, me, className, onError
       onErrorRef.current?.(message)
     })
 
+    // Отдельно ловим случай, когда ошибки нет, а тайлов всё равно нет:
+    // запрос молча висит, прокси режет трафик, воркер не стартовал. Снаружи
+    // это неотличимо от «в этом месте пусто», поэтому говорим прямо.
+    let tilesArrived = false
+    instance.on('sourcedata', (event) => {
+      if (event.sourceId === 'openmaptiles' && event.isSourceLoaded) tilesArrived = true
+    })
+    const tileWatchdog = setTimeout(() => {
+      if (!tilesArrived) {
+        onErrorRef.current?.('тайлы не пришли за 15 секунд — похоже, до tiles.openfreemap.org не достучаться')
+      }
+    }, 15_000)
+
     instance.on('load', () => {
       instance.addSource(SOURCE, {
         type: 'geojson',
@@ -159,6 +172,7 @@ export function MapCanvas({ places, selectedId, onSelect, me, className, onError
     resizeObserver.observe(container.current)
 
     return () => {
+      clearTimeout(tileWatchdog)
       resizeObserver.disconnect()
       instance.remove()
       map.current = null
