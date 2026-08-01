@@ -1,0 +1,26 @@
+{
+  // Развёртывание на Cloudflare Workers со статическими ассетами.
+  //
+  // Проект создан через «Import a repository» — этот путь заводит Worker,
+  // а не Pages. Разница существенная: SPA-роутинг здесь настраивается полем
+  // not_found_handling ниже, а файл public/_redirects не нужен и ломает
+  // деплой («Infinite loop detected»), потому что дублирует то же правило.
+  //
+  // Конфиг лежит в репозитории намеренно. Без него wrangler на каждой сборке
+  // запускает интерактивную настройку, дописывает файлы прямо в контейнере
+  // сборки и угадывает параметры — результат зависит от версии wrangler.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wherego",
+  "compatibility_date": "2026-08-01",
+
+  "assets": {
+    "directory": "./dist",
+    // Любой неизвестный путь отдаёт index.html — без этого прямой заход
+    // на /place/42 или обновление страницы дадут 404.
+    "not_found_handling": "single-page-application"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

@@ -77,6 +77,10 @@ src/
 └── types/        database.ts (генерируется) · models.ts (домен)
 ```
 
+Развёртывание — `wrangler.jsonc`: Cloudflare Worker со статикой, SPA-роутинг
+через `not_found_handling`. Файла `public/_redirects` тут нет намеренно, см.
+[SETUP.md](SETUP.md), шаг 10.
+
 ### Правило изоляции
 
 Прямые вызовы Supabase вне `src/api/` запрещены и ловятся ESLint-правилом

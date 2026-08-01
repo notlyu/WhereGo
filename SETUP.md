@@ -377,12 +377,23 @@ VITE_SUPABASE_ANON_KEY
 
 Нажать **Save and Deploy**. Первая сборка — 2–4 минуты.
 
+> [!note] Pages или Worker
+> Поток «Import a repository» в новом дашборде заводит **Worker со статикой**,
+> а не Pages — в логе сборки это видно по `npx wrangler deploy` и строке
+> `Worker Name: wherego`. Для нашей задачи разницы нет: тот же бесплатный
+> хостинг статики, тот же автодеплой по push.
+>
+> Отличается только SPA-роутинг. У Pages его задаёт файл `public/_redirects`,
+> у Worker — поле `not_found_handling` в `wrangler.jsonc`. Держать оба нельзя:
+> деплой падает с `Infinite loop detected in this rule`. В репозитории оставлен
+> вариант для Worker, `_redirects` удалён.
+
 ### 10.5 Проверить
 
-Адрес вида `https://wherego.pages.dev` (Cloudflare покажет точный).
+Адрес вида `https://wherego.<поддомен>.workers.dev` (Cloudflare покажет точный).
 
 - открыть сразу `/ideas` или `/place/…` — должно открыться, а не 404.
-  Если 404 — не подхватился `public/_redirects`;
+  Если 404 — не сработал `not_found_handling` в `wrangler.jsonc`;
 - на экране входа **не должно** быть плашки «Supabase ещё не подключён».
   Если она есть — забыли переменные из 10.4, добавить и пересобрать;
 - войти под своей учёткой, места должны быть те же, что локально.
