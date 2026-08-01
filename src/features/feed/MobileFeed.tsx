@@ -119,7 +119,7 @@ export function MobileFeed(data: FeedData) {
       {filters.view === 'cards' ? (
         <div className="flex flex-col gap-4">
           {list.map((place) => (
-            <PlaceCard key={place.id} place={place} meId={meId} />
+            <PlaceCard key={place.id} place={place} meId={meId} here={data.here} />
           ))}
         </div>
       ) : null}
@@ -127,7 +127,7 @@ export function MobileFeed(data: FeedData) {
       {filters.view === 'compact' ? (
         <div className="flex flex-col gap-2">
           {list.map((place) => (
-            <PlaceCompactRow key={place.id} place={place} meId={meId} />
+            <PlaceCompactRow key={place.id} place={place} meId={meId} here={data.here} />
           ))}
         </div>
       ) : null}
@@ -150,7 +150,7 @@ export function MobileFeed(data: FeedData) {
               </div>
               <div className="rail -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
                 {section.places.map((place) => (
-                  <PlaceCard key={place.id} place={place} meId={meId} layout="rail" />
+                  <PlaceCard key={place.id} place={place} meId={meId} here={data.here} layout="rail" />
                 ))}
               </div>
             </section>

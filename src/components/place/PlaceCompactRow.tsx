@@ -2,14 +2,28 @@ import { Link } from 'react-router'
 
 import { cn } from '@/lib/cn'
 import { formatRating } from '@/lib/format'
+import { formatDistance, haversine } from '@/lib/geo'
 import { PRICE_SHORT, type Place } from '@/types/models'
 
 import { STATUS_DOT } from './status'
 import { WantLabel } from './WantLabel'
 
 /** Л-8: компактный список — то же место одной строкой. */
-export function PlaceCompactRow({ place, meId }: { place: Place; meId: string | null }) {
-  const meta = [place.category?.name, place.price ? PRICE_SHORT[place.price] : null, formatRating(place.rating) || null]
+export function PlaceCompactRow({
+  place,
+  meId,
+  here = null,
+}: {
+  place: Place
+  meId: string | null
+  here?: { lat: number; lng: number } | null
+}) {
+  const distance =
+    here && place.lat !== null && place.lng !== null
+      ? formatDistance(haversine(here.lat, here.lng, place.lat, place.lng))
+      : null
+
+  const meta = [place.category?.name, place.price ? PRICE_SHORT[place.price] : null, distance, formatRating(place.rating) || null]
     .filter(Boolean)
     .join(' · ')
 

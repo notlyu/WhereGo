@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import { cn } from '@/lib/cn'
 import { formatRating } from '@/lib/format'
+import { formatDistance, haversine } from '@/lib/geo'
 import { PRICE_SHORT, type Place } from '@/types/models'
 
 import { PlaceCover } from './PlaceCover'
@@ -10,6 +11,8 @@ import { WantLabel } from './WantLabel'
 interface Props {
   place: Place
   meId: string | null
+  /** М-13: геопозиция, если разрешена. Без неё расстояние просто не рисуем. */
+  here?: { lat: number; lng: number } | null
   /**
    * `rail` — узкая карточка горизонтальной полки (телефон),
    * `full` — во всю ширину колонки (телефон, вид «карточки»),
@@ -18,7 +21,8 @@ interface Props {
   layout?: 'full' | 'rail' | 'grid'
 }
 
-export function PlaceCard({ place, meId, layout = 'full' }: Props) {
+export function PlaceCard({ place, meId, here = null, layout = 'full' }: Props) {
+  const distance = distanceTo(place, here)
   const rail = layout === 'rail'
   const grid = layout === 'grid'
 
@@ -50,6 +54,12 @@ export function PlaceCard({ place, meId, layout = 'full' }: Props) {
             </div>
             <div className="mt-2 flex items-center gap-2 text-[13px] text-fg-muted">
               <div>{place.price ? PRICE_SHORT[place.price] : '—'}</div>
+              {distance ? (
+                <>
+                  <div className="h-[3px] w-[3px] rounded-full bg-fg-faint" />
+                  <div>{distance}</div>
+                </>
+              ) : null}
               <div className="flex-1" />
               <div className="font-semibold whitespace-nowrap">{formatRating(place.rating)}</div>
             </div>
@@ -70,6 +80,12 @@ export function PlaceCard({ place, meId, layout = 'full' }: Props) {
                 <>
                   <div className="h-[3px] w-[3px] rounded-full bg-fg-faint" />
                   <div>{PRICE_SHORT[place.price]}</div>
+                </>
+              ) : null}
+              {distance ? (
+                <>
+                  <div className="h-[3px] w-[3px] rounded-full bg-fg-faint" />
+                  <div>{distance}</div>
                 </>
               ) : null}
               {grid ? (
@@ -95,4 +111,10 @@ export function PlaceCard({ place, meId, layout = 'full' }: Props) {
       </div>
     </Link>
   )
+}
+
+/** М-13: расстояние по прямой. Показываем, только когда есть обе точки. */
+function distanceTo(place: Place, here: { lat: number; lng: number } | null): string | null {
+  if (!here || place.lat === null || place.lng === null) return null
+  return formatDistance(haversine(here.lat, here.lng, place.lat, place.lng))
 }

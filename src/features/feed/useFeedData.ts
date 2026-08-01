@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { useAuth } from '@/hooks/auth-context'
 import { useCategories, usePlaces } from '@/hooks/queries'
 import { useFilters } from '@/hooks/useFilters'
+import { useGeolocation, type Coords } from '@/hooks/useGeolocation'
 import type { Category, Place, Profile } from '@/types/models'
 
 import { groupByCategory, selectIdeas, selectPlaces, type Section } from './select-places'
@@ -10,6 +11,8 @@ import { groupByCategory, selectIdeas, selectPlaces, type Section } from './sele
 export interface FeedData {
   meId: string | null
   me: Profile | null
+  /** М-13: последняя известная геопозиция, если её разрешали. */
+  here: Coords | null
   /** Все места, прошедшие фильтры (идеи исключены). */
   list: Place[]
   /** Полки по категориям — вид по умолчанию на телефоне. */
@@ -38,6 +41,7 @@ export function useFeedData(): FeedData {
   const { profile } = useAuth()
   const meId = profile?.id ?? null
   const { filters, setFilter, reset, activeCount } = useFilters()
+  const { coords: here } = useGeolocation()
 
   const placesQuery = usePlaces()
   const categoriesQuery = useCategories()
@@ -60,6 +64,7 @@ export function useFeedData(): FeedData {
   return {
     meId,
     me: profile,
+    here,
     list,
     sections,
     ideas,

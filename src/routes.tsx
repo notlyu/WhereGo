@@ -12,6 +12,7 @@ import { PlacePage } from '@/features/place/PlacePage'
 // Поэтому всё, что не на горячем пути «вошёл → лента → место», уезжает в
 // отдельные чанки. Форма, профиль и экраны следующих этапов грузятся по клику.
 const IdeasPage = lazy(() => import('@/features/feed/IdeasPage').then((m) => ({ default: m.IdeasPage })))
+const MapPage = lazy(() => import('@/features/map/MapPage').then((m) => ({ default: m.MapPage })))
 const PlaceFormPage = lazy(() => import('@/features/place-form/PlaceFormPage').then((m) => ({ default: m.PlaceFormPage })))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const StubPage = lazy(() => import('@/features/stubs/StubPage').then((m) => ({ default: m.StubPage })))
@@ -35,18 +36,7 @@ export const router = createBrowserRouter([
       { path: 'place/:id/edit', element: <LazyRoute><PlaceFormPage /></LazyRoute> },
       { path: 'profile', element: <LazyRoute><ProfilePage /></LazyRoute> },
 
-      {
-        path: 'map',
-        element: (
-          <LazyRoute>
-            <StubPage
-              title="Карта"
-              stage={3}
-              what="Места с координатами — маркерами, цвет по статусу, клик по маркеру открывает мини-карточку."
-            />
-          </LazyRoute>
-        ),
-      },
+      { path: 'map', element: <LazyRoute><MapPage /></LazyRoute> },
       {
         path: 'swipe',
         element: (

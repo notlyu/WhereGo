@@ -14,6 +14,7 @@ import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
 import { PRICE_LABEL, type PriceLevel } from '@/types/models'
 
+import { AddressField } from './AddressField'
 import { CategoryPicker } from './CategoryPicker'
 import { EMPTY_PLACE, placeSchema, toInput, type PlaceFormValues } from './schema'
 
@@ -97,23 +98,23 @@ export function PlaceFormPage() {
       </Section>
 
       <Section>
-        <Label hint="необязательно">адрес</Label>
-        <Input {...form.register('address')} placeholder="Улица, дом" />
-        {/* М-9, М-10: поиск по Nominatim и точка на карте — Этап 3. */}
-        <div
-          className={cn(
-            'mt-2.5 rounded-card',
-            isDesktop ? 'h-[170px] bg-surface-1' : 'h-[118px] bg-[#161616]',
+        <Controller
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <AddressField
+              address={field.value ?? ''}
+              lat={form.watch('lat')}
+              lng={form.watch('lng')}
+              desktop={isDesktop}
+              onChange={(next) => {
+                field.onChange(next.address)
+                form.setValue('lat', next.lat, { shouldDirty: true })
+                form.setValue('lng', next.lng, { shouldDirty: true })
+              }}
+            />
           )}
-          style={{
-            backgroundImage: 'linear-gradient(#1F1F1F 1px, transparent 1px), linear-gradient(90deg, #1F1F1F 1px, transparent 1px)',
-            backgroundSize: isDesktop ? '30px 30px' : '26px 26px',
-          }}
-        >
-          <div className="flex h-full items-center justify-center px-6 text-center font-mono text-[11px] tracking-[.06em] text-fg-dimmer uppercase">
-            карта и поиск адреса — этап 3
-          </div>
-        </div>
+        />
       </Section>
     </>
   )

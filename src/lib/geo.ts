@@ -13,3 +13,5 @@ export function haversine(aLat: number, aLng: number, bLat: number, bLng: number
 
 /** Центр Петербурга — точка отсчёта, пока геопозиция не разрешена (М-13, Этап 3). */
 export const SPB_CENTER = { lat: 59.9386, lng: 30.3141 }
+
+export { formatDistance } from './format'
