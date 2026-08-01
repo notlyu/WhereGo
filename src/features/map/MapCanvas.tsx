@@ -1,5 +1,8 @@
 // MapLibre 6 не отдаёт default export — только именованные.
-import { Map as MapLibreMap, Marker, type GeoJSONSource, type MapLayerMouseEvent, type MapMouseEvent } from 'maplibre-gl'
+import { Map as MapLibreMap, Marker, setWorkerUrl, type GeoJSONSource, type MapLayerMouseEvent, type MapMouseEvent } from 'maplibre-gl'
+// `?worker&url` заставляет Vite собрать воркер как отдельную точку входа —
+// с разрешением его собственных импортов — и вернуть адрес готового файла.
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useEffect, useRef } from 'react'
 
 import type { Coords } from '@/hooks/useGeolocation'
@@ -7,6 +10,22 @@ import { SPB_CENTER } from '@/lib/geo'
 import type { Place, PlaceStatus } from '@/types/models'
 
 import 'maplibre-gl/dist/maplibre-gl.css'
+
+/**
+ * Адрес воркера, который разбирает векторные тайлы.
+ *
+ * Сам MapLibre собирает его строкой — ждёт `maplibre-gl-worker.mjs` рядом с
+ * чанком. Сборщик такую ссылку не видит и файл в сборку не кладёт, поэтому в
+ * продакшене воркер получал 404. Хуже того: SPA-заглушка Cloudflare отдаёт на
+ * любой неизвестный путь `index.html` с кодом 200, так что воркеру приходил
+ * HTML вместо кода — и падал он молча, без единой сетевой ошибки. Карта при
+ * этом жила: стиль грузился, маркеры рисовались, а тайлы разбирать было некому.
+ *
+ * Помогает только сборочный импорт `?worker&url`: простой `?url` копирует файл
+ * как есть, и он спотыкается уже на своём `./maplibre-gl-shared.mjs`, которого
+ * в сборке тоже нет.
+ */
+setWorkerUrl(workerUrl)
 
 /**
  * Тайлы OpenFreeMap: без ключа, без лимитов, без регистрации.
