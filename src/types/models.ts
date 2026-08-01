@@ -46,6 +46,26 @@ export interface Place {
   coverUrl: string | null
 }
 
+/** План похода (В-3, В-4): место, дата, время и записка. */
+export interface Plan {
+  id: string
+  placeId: string
+  /** YYYY-MM-DD. Дата обязательна, время — нет. */
+  plannedDate: string
+  /** HH:MM или null: «сходим в субботу» — тоже план. */
+  plannedTime: string | null
+  note: string | null
+  createdBy: string
+  place: Place | null
+}
+
+export interface PlanInput {
+  placeId: string
+  plannedDate: string
+  plannedTime: string | null
+  note: string | null
+}
+
 /**
  * Голос в свайпах (В-1). Голос индивидуальный: у каждого свой по каждому месту.
  * Ключ — пара (place_id, user_id), поэтому пересвайпать можно, а раздвоиться нет.

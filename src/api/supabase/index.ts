@@ -1,5 +1,5 @@
 import type { Database } from '@/types/database'
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput } from '@/types/models'
 
 import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { supabase } from './client'
@@ -106,6 +106,38 @@ function toPhoto(row: PhotoRow): Photo {
     height: row.height,
     sortOrder: row.sort_order,
     uploadedBy: row.uploaded_by,
+  }
+}
+
+type PlanRowJoined = {
+  id: string
+  place_id: string
+  planned_date: string
+  planned_time: string | null
+  note: string | null
+  created_by: string
+  place: PlaceRowJoined | null
+}
+
+function toPlan(row: PlanRowJoined): Plan {
+  return {
+    id: row.id,
+    placeId: row.place_id,
+    plannedDate: row.planned_date,
+    // Postgres отдаёт время как HH:MM:SS — в интерфейсе секунды не нужны.
+    plannedTime: row.planned_time ? row.planned_time.slice(0, 5) : null,
+    note: row.note,
+    createdBy: row.created_by,
+    place: row.place ? toPlace(row.place) : null,
+  }
+}
+
+function toPlanRow(input: PlanInput) {
+  return {
+    place_id: input.placeId,
+    planned_date: input.plannedDate,
+    planned_time: input.plannedTime,
+    note: input.note,
   }
 }
 
@@ -301,6 +333,46 @@ export const supabaseBackend: Backend = {
 
     async remove(id) {
       const { error } = await supabase.from('reviews').delete().eq('id', id)
+      if (error) throw new ApiError(error.message)
+    },
+  },
+
+  plans: {
+    async list() {
+      const { data, error } = await supabase
+        .from('plans')
+        .select(`*, place:places!plans_place_id_fkey(${PLACE_SELECT})`)
+        .order('planned_date')
+        .order('planned_time', { nullsFirst: true })
+      if (error) throw new ApiError(error.message)
+
+      return (data as unknown as PlanRowJoined[]).map(toPlan)
+    },
+
+    async create(input: PlanInput) {
+      const createdBy = await requireUserId()
+      const { data, error } = await supabase
+        .from('plans')
+        .insert({ ...toPlanRow(input), created_by: createdBy })
+        .select(`*, place:places!plans_place_id_fkey(${PLACE_SELECT})`)
+        .single()
+      if (error) throw new ApiError(error.message)
+      return toPlan(data as unknown as PlanRowJoined)
+    },
+
+    async update(id, input: PlanInput) {
+      const { data, error } = await supabase
+        .from('plans')
+        .update(toPlanRow(input))
+        .eq('id', id)
+        .select(`*, place:places!plans_place_id_fkey(${PLACE_SELECT})`)
+        .single()
+      if (error) throw new ApiError(error.message)
+      return toPlan(data as unknown as PlanRowJoined)
+    },
+
+    async remove(id) {
+      const { error } = await supabase.from('plans').delete().eq('id', id)
       if (error) throw new ApiError(error.message)
     },
   },

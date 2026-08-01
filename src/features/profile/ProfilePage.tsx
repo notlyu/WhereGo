@@ -7,10 +7,12 @@ import { PROFILE_MENU } from '@/components/layout/nav-items'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/auth-context'
-import { usePlaces, useStorageUsage } from '@/hooks/queries'
+import { usePlaces, usePlans, useStorageUsage } from '@/hooks/queries'
+import { nextPlan } from '@/features/plans/calendar'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
 import { formatBytes } from '@/lib/compressImage'
+import { formatDate } from '@/lib/format'
 
 /** Н-4 (выход) — обязателен уже на этапе 1. Имя, аватар и пароль — этап 5. */
 export function ProfilePage() {
@@ -18,6 +20,7 @@ export function ProfilePage() {
   const isDesktop = useIsDesktop()
   const { data: places = [] } = usePlaces()
   const { data: usage } = useStorageUsage()
+  const { data: plans = [] } = usePlans()
   const [busy, setBusy] = useState(false)
 
   const other = places.find((place) => place.author && place.author.id !== profile?.id)?.author
@@ -25,13 +28,16 @@ export function ProfilePage() {
   const notes = useMemo<Record<string, string>>(() => {
     const visited = places.filter((place) => place.status === 'visited').length
     const ideas = places.filter((place) => place.isIdea).length
+    const soon = nextPlan(plans)
     return {
-      '/plans': 'ближайших планов пока нет',
+      '/plans': soon
+        ? `ближайший — ${formatDate(soon.plannedDate)}${soon.plannedTime ? `, ${soon.plannedTime}` : ''}`
+        : 'ближайших планов пока нет',
       '/history': visited ? `${visited} ${plural(visited, 'поход', 'похода', 'походов')}` : 'ещё никуда не сходили',
       '/year': 'собираются сами',
       '/ideas': ideas ? `${ideas} ${plural(ideas, 'ждёт', 'ждут', 'ждут')}` : 'пока пусто',
     }
-  }, [places])
+  }, [places, plans])
 
   async function onSignOut() {
     setBusy(true)

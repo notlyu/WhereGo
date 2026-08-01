@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '@/hooks/auth-context'
 
-import { categories as categoriesApi, photos as photosApi, places as placesApi, reviews as reviewsApi, votes as votesApi } from '@/api'
-import type { Place, PlaceInput, PlaceStatus, ReviewInput, Vote } from '@/types/models'
+import { categories as categoriesApi, photos as photosApi, places as placesApi, plans as plansApi, reviews as reviewsApi, votes as votesApi } from '@/api'
+import type { Place, PlaceInput, PlaceStatus, PlanInput, ReviewInput, Vote } from '@/types/models'
 
 export const queryKeys = {
   places: ['places'] as const,
@@ -13,6 +13,7 @@ export const queryKeys = {
   photos: (placeId: string) => ['photos', placeId] as const,
   storageUsage: ['storage-usage'] as const,
   votes: ['votes'] as const,
+  plans: ['plans'] as const,
 }
 
 export function usePlaces() {
@@ -257,5 +258,30 @@ export function useCastVote() {
     },
 
     onSettled: () => void queryClient.invalidateQueries({ queryKey: queryKeys.votes }),
+  })
+}
+
+export function usePlans() {
+  return useQuery({
+    queryKey: queryKeys.plans,
+    queryFn: () => plansApi.list(),
+  })
+}
+
+export function useSavePlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    // В-4: одна мутация на создание и правку — поля те же, различается лишь id.
+    mutationFn: ({ id, input }: { id?: string; input: PlanInput }) =>
+      id ? plansApi.update(id, input) : plansApi.create(input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.plans }),
+  })
+}
+
+export function useDeletePlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => plansApi.remove(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.plans }),
   })
 }

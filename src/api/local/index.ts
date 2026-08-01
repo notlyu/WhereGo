@@ -1,4 +1,4 @@
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput, Vote } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Vote } from '@/types/models'
 
 import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { LOCAL_PASSWORD, SEED_CATEGORIES, SEED_IDEAS, SEED_PLACES, SEED_PROFILES, SEED_REVIEWS } from './seed'
@@ -20,6 +20,7 @@ interface Store {
   reviews: Review[]
   photos: Photo[]
   votes: Vote[]
+  plans: Plan[]
 }
 
 function nowMinusDays(days: number): string {
@@ -85,7 +86,7 @@ function seedStore(): Store {
     author: profiles.get(r.authorId) ?? null,
   }))
 
-  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [], votes: [] }
+  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [], votes: [], plans: [] }
 }
 
 function read(): Store {
@@ -345,6 +346,50 @@ export const localBackend: Backend = {
       if (!review) return
       if (review.authorId !== me.id) throw new ApiError('Удалить можно только свой отзыв.')
       store.reviews = store.reviews.filter((r) => r.id !== id)
+      write(store)
+    },
+  },
+
+  plans: {
+    async list() {
+      const store = read()
+      return (store.plans ?? [])
+        .map((plan) => {
+          const place = store.places.find((p) => p.id === plan.placeId)
+          return { ...plan, place: place ? hydrate(place, store) : null }
+        })
+        .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate) || (a.plannedTime ?? '').localeCompare(b.plannedTime ?? ''))
+    },
+
+    async create(input: PlanInput) {
+      const me = requireSession()
+      const store = read()
+      store.plans = store.plans ?? []
+      const plan: Plan = { id: crypto.randomUUID(), ...input, createdBy: me.id, place: null }
+      store.plans.push(plan)
+      write(store)
+      const place = store.places.find((p) => p.id === input.placeId)
+      return { ...plan, place: place ? hydrate(place, store) : null }
+    },
+
+    async update(id, input: PlanInput) {
+      requireSession()
+      const store = read()
+      const index = (store.plans ?? []).findIndex((plan) => plan.id === id)
+      if (index < 0) throw new ApiError('План не найден.')
+      store.plans[index] = { ...store.plans[index], ...input }
+      write(store)
+      const place = store.places.find((p) => p.id === input.placeId)
+      return { ...store.plans[index], place: place ? hydrate(place, store) : null }
+    },
+
+    async remove(id) {
+      const me = requireSession()
+      const store = read()
+      const plan = (store.plans ?? []).find((p) => p.id === id)
+      if (!plan) return
+      if (plan.createdBy !== me.id) throw new ApiError('Удалить может только тот, кто запланировал.')
+      store.plans = store.plans.filter((p) => p.id !== id)
       write(store)
     },
   },

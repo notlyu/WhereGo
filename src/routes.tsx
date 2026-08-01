@@ -15,6 +15,7 @@ const IdeasPage = lazy(() => import('@/features/feed/IdeasPage').then((m) => ({ 
 const MapPage = lazy(() => import('@/features/map/MapPage').then((m) => ({ default: m.MapPage })))
 const MatchesPage = lazy(() => import('@/features/swipe/MatchesPage').then((m) => ({ default: m.MatchesPage })))
 const SwipePage = lazy(() => import('@/features/swipe/SwipePage').then((m) => ({ default: m.SwipePage })))
+const PlansPage = lazy(() => import('@/features/plans/PlansPage').then((m) => ({ default: m.PlansPage })))
 const PlaceFormPage = lazy(() => import('@/features/place-form/PlaceFormPage').then((m) => ({ default: m.PlaceFormPage })))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const StubPage = lazy(() => import('@/features/stubs/StubPage').then((m) => ({ default: m.StubPage })))
@@ -41,18 +42,7 @@ export const router = createBrowserRouter([
       { path: 'map', element: <LazyRoute><MapPage /></LazyRoute> },
       { path: 'swipe', element: <LazyRoute><SwipePage /></LazyRoute> },
       { path: 'matches', element: <LazyRoute><MatchesPage /></LazyRoute> },
-      {
-        path: 'plans',
-        element: (
-          <LazyRoute>
-            <StubPage
-              title="Планы"
-              stage={4}
-              what="Календарь на месяц с точками занятых дней и список планов на выбранный день."
-            />
-          </LazyRoute>
-        ),
-      },
+      { path: 'plans', element: <LazyRoute><PlansPage /></LazyRoute> },
       {
         path: 'history',
         element: (

@@ -1,4 +1,4 @@
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput, Vote } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Vote } from '@/types/models'
 
 /**
  * Контракт бэкенда.
@@ -47,6 +47,13 @@ export interface Backend {
      */
     save(placeId: string, input: ReviewInput): Promise<Review>
     /** О-4: удалить можно только свой — держит RLS. */
+    remove(id: string): Promise<void>
+  }
+
+  plans: {
+    list(): Promise<Plan[]>
+    create(input: PlanInput): Promise<Plan>
+    update(id: string, input: PlanInput): Promise<Plan>
     remove(id: string): Promise<void>
   }
 
