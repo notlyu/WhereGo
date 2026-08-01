@@ -13,25 +13,31 @@
 
 
 -- ---------- 1. Бакет ----------
--- public = true: ссылка на фото работает без подписи, файлы кэшируются
--- браузером и CDN. Ссылки содержат случайный UUID и нигде не публикуются,
--- но угадать их нельзя, а перебрать — тем более.
+-- Бакет создаётся ВРУЧНУЮ в дашборде: Storage → New bucket.
 --
--- Б-5: только изображения, не больше 15 МБ до сжатия. Клиент ужимает файл
--- заранее (Ф-3), этот предел — предохранитель на случай обхода формы.
+--   Name                 photos
+--   Public bucket        включить
+--   Restrict file size   15 MB
+--   Allowed MIME types   image/jpeg, image/png, image/webp, image/heic, image/heif
+--
+-- Через SQL не выйдет: на `storage.buckets` включена RLS, и даже в SQL Editor
+-- вставка падает с «new row violates row-level security policy». Это не наша
+-- ошибка и не лечится правами — Supabase намеренно оставил создание бакетов
+-- интерфейсу и своему API.
+--
+-- public = true нужен, чтобы ссылка на фото работала без подписи и файлы
+-- кэшировались браузером. Ссылки содержат случайный UUID и нигде не публикуются.
+--
+-- Б-5 (только изображения, не больше 15 МБ) задаётся настройками бакета там же.
+-- Клиент ужимает файл заранее (Ф-3), эти пределы — предохранитель.
 
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'photos',
-  'photos',
-  true,
-  15728640,                                   -- 15 МБ
-  array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
-)
-on conflict (id) do update
-set public             = excluded.public,
-    file_size_limit    = excluded.file_size_limit,
-    allowed_mime_types = excluded.allowed_mime_types;
+do $$
+begin
+  if not exists (select 1 from storage.buckets where id = 'photos') then
+    raise exception
+      'Бакет photos не найден. Сначала создайте его в дашборде: Storage → New bucket, имя photos, Public bucket включить. Потом запустите эту миграцию заново.';
+  end if;
+end $$;
 
 
 -- ---------- 2. Права на объекты ----------
