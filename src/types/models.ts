@@ -46,6 +46,23 @@ export interface Place {
   coverUrl: string | null
 }
 
+/** Фотография места или отзыва. Файл в хранилище, здесь только ссылка. */
+export interface Photo {
+  id: string
+  placeId: string | null
+  reviewId: string | null
+  /** Путь в бакете — нужен, чтобы удалить сам файл, а не только запись. */
+  storageKey: string
+  url: string
+  width: number | null
+  height: number | null
+  sortOrder: number
+  uploadedBy: string
+}
+
+/** Ф-1: больше десяти фото на место не берём. */
+export const MAX_PHOTOS_PER_PLACE = 10
+
 /**
  * Отзыв. О-1: один на место от каждого — ограничение стоит в БД
  * (`unique (place_id, author_id)`), а не только в интерфейсе.

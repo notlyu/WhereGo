@@ -1,4 +1,4 @@
-import type { Category, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
 
 /**
  * Контракт бэкенда.
@@ -49,7 +49,24 @@ export interface Backend {
     /** О-4: удалить можно только свой — держит RLS. */
     remove(id: string): Promise<void>
   }
+
+  photos: {
+    /** Фото места и фото его отзывов приходят одним запросом. */
+    listForPlace(placeId: string): Promise<Photo[]>
+    /**
+     * Ф-4: файл уходит в хранилище напрямую, минуя приложение.
+     * `blob` уже сжат на клиенте (Ф-3) — сюда попадает готовый WebP.
+     */
+    upload(target: PhotoTarget, blob: Blob, size: { width: number; height: number }): Promise<Photo>
+    /** Ф-5: удаляется и запись, и сам файл. */
+    remove(id: string): Promise<void>
+    /** Сколько занято в хранилище — для счётчика в настройках. */
+    usage(): Promise<{ files: number; bytes: number }>
+  }
 }
+
+/** Фото принадлежит либо месту, либо отзыву — ограничение `check` в БД. */
+export type PhotoTarget = { placeId: string; reviewId?: never } | { reviewId: string; placeId?: never }
 
 /** Ошибка, которую интерфейс показывает пользователю дословно. */
 export class ApiError extends Error {

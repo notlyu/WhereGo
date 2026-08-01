@@ -15,6 +15,9 @@ import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
 import { PRICE_LABEL, type Place, type PlaceStatus, type Profile } from '@/types/models'
 
+import { PhotoUploader } from '@/components/photo/PhotoUploader'
+import { usePhotos } from '@/hooks/queries'
+
 import { ReviewsSection } from './ReviewsSection'
 
 export function PlacePage() {
@@ -25,6 +28,7 @@ export function PlacePage() {
   const { data: place, isPending, isError, error } = usePlace(id)
   const setStatus = useSetPlaceStatus()
   const remove = useDeletePlace()
+  const { data: photos = [] } = usePhotos(id)
 
   if (isPending) {
     return <div className={cn('animate-pulse bg-surface-2', isDesktop ? 'h-[70vh] rounded-card' : 'h-[70vh]')} />
@@ -85,11 +89,23 @@ export function PlacePage() {
 
         <div className="mt-[22px] grid items-start gap-7 grid-cols-[repeat(auto-fit,minmax(380px,1fr))]">
           <div>
-            <PlaceCover place={place} height={420} className="rounded-3xl" label="фото появятся на этапе 2" showStatus={false} />
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              {[0, 1, 2].map((index) => (
-                <div key={index} className="hatch-sm h-[110px] rounded-card" />
-              ))}
+            <PlaceCover place={place} height={420} className="rounded-3xl" label="фото пока нет" showStatus={false} />
+            {photos.length > 1 ? (
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                {photos.slice(1, 7).map((photo) => (
+                  <img
+                    key={photo.id}
+                    src={photo.url}
+                    alt=""
+                    loading="lazy"
+                    className="h-[110px] w-full rounded-card object-cover"
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-[34px]">
+              <PhotoUploader placeId={place.id} target={{ placeId: place.id }} desktop />
             </div>
 
             <div className="mt-[34px] text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">отзывы</div>
@@ -108,7 +124,7 @@ export function PlacePage() {
   return (
     <article className="pb-11">
       <div className="relative">
-        <PlaceCover place={place} height={300} label="фото появятся на этапе 2" />
+        <PlaceCover place={place} height={300} label="фото пока нет" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-linear-to-b from-transparent to-bg" />
         <button
           type="button"
@@ -122,6 +138,9 @@ export function PlacePage() {
 
       <div className="px-5 pt-1.5">
         {info}
+
+        <div className="my-6 h-px bg-[#262626]" />
+        <PhotoUploader placeId={place.id} target={{ placeId: place.id }} />
 
         <div className="my-6 h-px bg-[#262626]" />
         <div className="eyebrow">что мы подумали</div>

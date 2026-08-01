@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { categories as categoriesApi, places as placesApi, reviews as reviewsApi } from '@/api'
+import { categories as categoriesApi, photos as photosApi, places as placesApi, reviews as reviewsApi } from '@/api'
 import type { Place, PlaceInput, PlaceStatus, ReviewInput } from '@/types/models'
 
 export const queryKeys = {
@@ -8,6 +8,8 @@ export const queryKeys = {
   place: (id: string) => ['places', id] as const,
   categories: ['categories'] as const,
   reviews: (placeId: string) => ['reviews', placeId] as const,
+  photos: (placeId: string) => ['photos', placeId] as const,
+  storageUsage: ['storage-usage'] as const,
 }
 
 export function usePlaces() {
@@ -178,5 +180,36 @@ export function useDeleteReview(placeId: string) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.places })
     },
+  })
+}
+
+export function usePhotos(placeId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.photos(placeId ?? ''),
+    queryFn: () => photosApi.listForPlace(placeId as string),
+    enabled: Boolean(placeId),
+  })
+}
+
+export function useDeletePhoto(placeId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => photosApi.remove(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.photos(placeId) })
+      // Обложка места берётся из первого фото — лента тоже меняется.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.places })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.storageUsage })
+    },
+  })
+}
+
+/** Счётчик занятого места: на бесплатном тарифе Supabase это 1 ГБ на всё. */
+export function useStorageUsage() {
+  return useQuery({
+    queryKey: queryKeys.storageUsage,
+    queryFn: () => photosApi.usage(),
+    staleTime: 5 * 60 * 1000,
   })
 }

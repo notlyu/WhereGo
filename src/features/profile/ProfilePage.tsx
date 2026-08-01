@@ -7,14 +7,17 @@ import { PROFILE_MENU } from '@/components/layout/nav-items'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/auth-context'
-import { usePlaces } from '@/hooks/queries'
+import { usePlaces, useStorageUsage } from '@/hooks/queries'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
+import { cn } from '@/lib/cn'
+import { formatBytes } from '@/lib/compressImage'
 
 /** Н-4 (выход) — обязателен уже на этапе 1. Имя, аватар и пароль — этап 5. */
 export function ProfilePage() {
   const { profile, signOut } = useAuth()
   const isDesktop = useIsDesktop()
   const { data: places = [] } = usePlaces()
+  const { data: usage } = useStorageUsage()
   const [busy, setBusy] = useState(false)
 
   const other = places.find((place) => place.author && place.author.id !== profile?.id)?.author
@@ -61,6 +64,7 @@ export function ProfilePage() {
           <Stat value={places.filter((p) => p.isIdea).length} label="идей в списке" />
         </div>
 
+        {usage ? <StorageMeter files={usage.files} bytes={usage.bytes} /> : null}
         {isLocalBackend ? <LocalNote /> : null}
 
         <Button variant="surface" onClick={() => void onSignOut()} disabled={busy} className="mt-7 w-[220px] bg-surface-d hover:bg-surface-2">
@@ -114,6 +118,7 @@ export function ProfilePage() {
         ))}
       </div>
 
+      {usage ? <StorageMeter files={usage.files} bytes={usage.bytes} /> : null}
       {isLocalBackend ? <LocalNote /> : null}
 
       <button
@@ -124,6 +129,41 @@ export function ProfilePage() {
       >
         {busy ? 'Выходим…' : 'Выйти'}
       </button>
+    </div>
+  )
+}
+
+/**
+ * Счётчик занятого места.
+ *
+ * На бесплатном тарифе Supabase это 1 ГБ на всё, и при превышении сервис
+ * отдаёт 402, переставая обслуживать не только фото, но и ленту со входом.
+ * Поэтому расход виден заранее, а не выясняется по факту падения.
+ */
+function StorageMeter({ files, bytes }: { files: number; bytes: number }) {
+  const LIMIT = 1024 * 1024 * 1024
+  const percent = Math.min(100, (bytes / LIMIT) * 100)
+  const tight = percent > 75
+
+  return (
+    <div className="mt-6 rounded-card bg-surface-2 p-4 desktop:bg-surface-d">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-sm font-semibold text-fg">Фотографии</div>
+        <div className="text-[13px] text-fg-dim">
+          {formatBytes(bytes)} из 1 ГБ · {files} шт.
+        </div>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-pill bg-surface-4">
+        <div
+          className={cn('h-full rounded-pill transition-[width]', tight ? 'bg-[#FF7A6B]' : 'bg-accent')}
+          style={{ width: `${Math.max(percent, 1)}%` }}
+        />
+      </div>
+      {tight ? (
+        <div className="mt-2.5 text-[12.5px] leading-relaxed text-[#FF7A6B]">
+          Место кончается. При превышении Supabase перестанет отвечать целиком — стоит перенести фото в R2.
+        </div>
+      ) : null}
     </div>
   )
 }

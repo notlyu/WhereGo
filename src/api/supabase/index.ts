@@ -1,13 +1,17 @@
 import type { Database } from '@/types/database'
-import type { Category, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
 
-import { ApiError, type Backend } from '../backend'
+import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { supabase } from './client'
 
 type PlaceRow = Database['public']['Tables']['places']['Row']
 type CategoryRow = Database['public']['Tables']['categories']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 type ReviewRow = Database['public']['Tables']['reviews']['Row']
+type PhotoRow = Database['public']['Tables']['photos']['Row']
+
+/** Имя бакета из `0002_storage.sql`. */
+const BUCKET = 'photos'
 
 type ReviewRowJoined = ReviewRow & { author: ProfileRow | null }
 
@@ -88,6 +92,20 @@ function toReview(row: ReviewRowJoined): Review {
     visitedAt: row.visited_at,
     createdAt: row.created_at,
     author: row.author ? toProfile(row.author) : null,
+  }
+}
+
+function toPhoto(row: PhotoRow): Photo {
+  return {
+    id: row.id,
+    placeId: row.place_id,
+    reviewId: row.review_id,
+    storageKey: row.r2_key,
+    url: row.url,
+    width: row.width,
+    height: row.height,
+    sortOrder: row.sort_order,
+    uploadedBy: row.uploaded_by,
   }
 }
 
@@ -284,6 +302,93 @@ export const supabaseBackend: Backend = {
     async remove(id) {
       const { error } = await supabase.from('reviews').delete().eq('id', id)
       if (error) throw new ApiError(error.message)
+    },
+  },
+
+  photos: {
+    async listForPlace(placeId) {
+      // Фото отзывов этого места тоже нужны — берём их подзапросом по review_id.
+      const { data: reviewRows, error: reviewError } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('place_id', placeId)
+      if (reviewError) throw new ApiError(reviewError.message)
+
+      const reviewIds = reviewRows.map((r) => r.id)
+      const filter = reviewIds.length
+        ? `place_id.eq.${placeId},review_id.in.(${reviewIds.join(',')})`
+        : `place_id.eq.${placeId}`
+
+      const { data, error } = await supabase.from('photos').select('*').or(filter).order('sort_order')
+      if (error) throw new ApiError(error.message)
+      return data.map(toPhoto)
+    },
+
+    async upload(target: PhotoTarget, blob, size) {
+      const uploadedBy = await requireUserId()
+
+      // Путь начинается с id пользователя: политики в 0002_storage.sql
+      // разрешают запись и удаление только в своей папке.
+      const key = `${uploadedBy}/${crypto.randomUUID()}.webp`
+
+      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(key, blob, {
+        contentType: 'image/webp',
+        // Файл неизменяемый: имя содержит UUID, перезаписи не бывает.
+        cacheControl: '31536000',
+        upsert: false,
+      })
+      if (uploadError) throw new ApiError(uploadError.message)
+
+      const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(key)
+
+      const { data, error } = await supabase
+        .from('photos')
+        .insert({
+          place_id: target.placeId ?? null,
+          review_id: target.reviewId ?? null,
+          r2_key: key,
+          url: publicUrl.publicUrl,
+          width: size.width,
+          height: size.height,
+          bytes: blob.size,
+          uploaded_by: uploadedBy,
+        } as never)
+        .select('*')
+        .single()
+
+      if (error) {
+        // Запись не легла — файл в хранилище остался бы мусором.
+        await supabase.storage.from(BUCKET).remove([key])
+        throw new ApiError(error.message)
+      }
+
+      return toPhoto(data)
+    },
+
+    async remove(id) {
+      const { data: row, error: findError } = await supabase.from('photos').select('r2_key').eq('id', id).maybeSingle()
+      if (findError) throw new ApiError(findError.message)
+      if (!row) return
+
+      // Ф-5: сперва запись, потом файл. Если упадёт удаление файла, запись уже
+      // не показывается, а осиротевший объект видно в счётчике занятого места.
+      const { error } = await supabase.from('photos').delete().eq('id', id)
+      if (error) throw new ApiError(error.message)
+
+      await supabase.storage.from(BUCKET).remove([row.r2_key])
+    },
+
+    async usage() {
+      const { data, error } = await supabase.from('photos').select('bytes')
+      if (error) throw new ApiError(error.message)
+
+      // Колонка `bytes` появляется миграцией 0002. Пока типы не перегенерированы
+      // после неё, TypeScript о ней не знает — отсюда приведение.
+      const rows = data as unknown as { bytes: number | null }[]
+      return {
+        files: rows.length,
+        bytes: rows.reduce((sum, row) => sum + (row.bytes ?? 0), 0),
+      }
     },
   },
 }

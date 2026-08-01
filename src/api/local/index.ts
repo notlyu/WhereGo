@@ -1,6 +1,6 @@
-import type { Category, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
 
-import { ApiError, type Backend } from '../backend'
+import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { LOCAL_PASSWORD, SEED_CATEGORIES, SEED_IDEAS, SEED_PLACES, SEED_PROFILES, SEED_REVIEWS } from './seed'
 
 /**
@@ -18,6 +18,7 @@ interface Store {
   categories: Category[]
   places: Place[]
   reviews: Review[]
+  photos: Photo[]
 }
 
 function nowMinusDays(days: number): string {
@@ -83,7 +84,7 @@ function seedStore(): Store {
     author: profiles.get(r.authorId) ?? null,
   }))
 
-  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews }
+  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [] }
 }
 
 function read(): Store {
@@ -133,11 +134,16 @@ function hydrate(place: Place, store: Store): Place {
   // где она выводится из вложенных `reviews(rating)`.
   const ratings = (store.reviews ?? []).filter((r) => r.placeId === place.id)
 
+  const cover = (store.photos ?? [])
+    .filter((photo) => photo.placeId === place.id)
+    .sort((a, b) => a.sortOrder - b.sortOrder)[0]
+
   return {
     ...place,
     category: store.categories.find((c) => c.id === place.categoryId) ?? null,
     author: seedProfile ? { id: seedProfile.id, displayName: seedProfile.displayName, avatarUrl: seedProfile.avatarUrl } : null,
     rating: ratings.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : null,
+    coverUrl: cover?.url ?? null,
   }
 }
 
@@ -341,6 +347,73 @@ export const localBackend: Backend = {
       write(store)
     },
   },
+
+  photos: {
+    async listForPlace(placeId) {
+      const store = read()
+      const reviewIds = new Set((store.reviews ?? []).filter((r) => r.placeId === placeId).map((r) => r.id))
+      return (store.photos ?? [])
+        .filter((photo) => photo.placeId === placeId || (photo.reviewId && reviewIds.has(photo.reviewId)))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+    },
+
+    async upload(target: PhotoTarget, blob, size) {
+      const me = requireSession()
+      const store = read()
+      store.photos = store.photos ?? []
+
+      // Настоящего хранилища тут нет: файл живёт в localStorage как data URL.
+      // Для демо этого хватает, но квота браузера — около 5 МБ на всё,
+      // поэтому падение по переполнению обрабатываем понятным текстом.
+      const url = await blobToDataUrl(blob)
+
+      const photo: Photo = {
+        id: crypto.randomUUID(),
+        placeId: target.placeId ?? null,
+        reviewId: target.reviewId ?? null,
+        storageKey: `local/${crypto.randomUUID()}`,
+        url,
+        width: size.width,
+        height: size.height,
+        sortOrder: store.photos.filter((p) => p.placeId === (target.placeId ?? null)).length,
+        uploadedBy: me.id,
+      }
+
+      store.photos.push(photo)
+      try {
+        write(store)
+      } catch {
+        throw new ApiError('В демо-режиме место под фото кончилось — браузер даёт около 5 МБ. Подключите Supabase.')
+      }
+      return photo
+    },
+
+    async remove(id) {
+      const me = requireSession()
+      const store = read()
+      const photo = (store.photos ?? []).find((p) => p.id === id)
+      if (!photo) return
+      if (photo.uploadedBy !== me.id) throw new ApiError('Удалить можно только своё фото.')
+      store.photos = store.photos.filter((p) => p.id !== id)
+      write(store)
+    },
+
+    async usage() {
+      const photos = read().photos ?? []
+      // data URL в base64 весит примерно на треть больше самого файла.
+      const bytes = photos.reduce((sum, photo) => sum + Math.round((photo.url.length * 3) / 4), 0)
+      return { files: photos.length, bytes }
+    },
+  },
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new ApiError('Не смогли прочитать файл'))
+    reader.readAsDataURL(blob)
+  })
 }
 
 /** Сброс демо-данных к исходному состоянию. Вызывается из настроек. */
