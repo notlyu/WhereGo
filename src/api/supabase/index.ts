@@ -16,12 +16,24 @@ type PlaceRowJoined = PlaceRow & {
 }
 
 // Один запрос вместо четырёх: PostgREST разворачивает связи по внешним ключам.
+//
+// Связь указывается через `!имя_ограничения` явно, а не выводится сама.
+// Между `places` и `profiles` путей несколько: прямой `author_id`, плюс
+// `reviews` и `place_votes` — обе ссылаются и на место, и на человека, и
+// PostgREST видит в них связь «многие ко многим». Без подсказки он отвечает
+// «more than one relationship was found» и запрос не выполняется вовсе.
+//
+// Имена — те, что Postgres выдаёт по умолчанию: <таблица>_<колонка>_fkey.
+// Если миграцию правили руками, свериться можно так:
+//   select conname from pg_constraint
+//   where conrelid in ('places'::regclass, 'reviews'::regclass, 'photos'::regclass)
+//     and contype = 'f';
 const PLACE_SELECT = `
   *,
-  category:categories(*),
-  author:profiles(*),
-  reviews(rating),
-  photos(url, sort_order)
+  category:categories!places_category_id_fkey(*),
+  author:profiles!places_author_id_fkey(*),
+  reviews!reviews_place_id_fkey(rating),
+  photos!photos_place_id_fkey(url, sort_order)
 `
 
 function toProfile(row: ProfileRow): Profile {
