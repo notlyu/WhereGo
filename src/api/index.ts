@@ -24,4 +24,5 @@ export const categories = backend.categories
 export const places = backend.places
 export const reviews = backend.reviews
 export const photos = backend.photos
+export const votes = backend.votes
 export const isLocalBackend = backend.kind === 'local'

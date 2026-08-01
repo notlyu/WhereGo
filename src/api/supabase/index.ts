@@ -305,6 +305,29 @@ export const supabaseBackend: Backend = {
     },
   },
 
+  votes: {
+    async list() {
+      const { data, error } = await supabase.from('place_votes').select('place_id, user_id, wants')
+      if (error) throw new ApiError(error.message)
+      return (data as unknown as { place_id: string; user_id: string; wants: boolean }[]).map((row) => ({
+        placeId: row.place_id,
+        userId: row.user_id,
+        wants: row.wants,
+      }))
+    },
+
+    async cast(placeId, wants) {
+      const userId = await requireUserId()
+      // Первичный ключ — пара (place_id, user_id): повторный свайп по тому же
+      // месту переписывает свой голос, а не заводит второй.
+      const { error } = await supabase
+        .from('place_votes')
+        .upsert({ place_id: placeId, user_id: userId, wants }, { onConflict: 'place_id,user_id' } as never)
+      if (error) throw new ApiError(error.message)
+      return { placeId, userId, wants }
+    },
+  },
+
   photos: {
     async listForPlace(placeId) {
       // Фото отзывов этого места тоже нужны — берём их подзапросом по review_id.

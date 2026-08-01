@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { categories as categoriesApi, photos as photosApi, places as placesApi, reviews as reviewsApi } from '@/api'
-import type { Place, PlaceInput, PlaceStatus, ReviewInput } from '@/types/models'
+import { useAuth } from '@/hooks/auth-context'
+
+import { categories as categoriesApi, photos as photosApi, places as placesApi, reviews as reviewsApi, votes as votesApi } from '@/api'
+import type { Place, PlaceInput, PlaceStatus, ReviewInput, Vote } from '@/types/models'
 
 export const queryKeys = {
   places: ['places'] as const,
@@ -10,6 +12,7 @@ export const queryKeys = {
   reviews: (placeId: string) => ['reviews', placeId] as const,
   photos: (placeId: string) => ['photos', placeId] as const,
   storageUsage: ['storage-usage'] as const,
+  votes: ['votes'] as const,
 }
 
 export function usePlaces() {
@@ -211,5 +214,48 @@ export function useStorageUsage() {
     queryKey: queryKeys.storageUsage,
     queryFn: () => photosApi.usage(),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useVotes() {
+  return useQuery({
+    queryKey: queryKeys.votes,
+    queryFn: () => votesApi.list(),
+  })
+}
+
+/**
+ * В-1: свайп сохраняется оптимистично — карточка должна улетать сразу,
+ * а не после круга до базы и обратно. Иначе весь смысл жеста теряется.
+ */
+export function useCastVote() {
+  const queryClient = useQueryClient()
+  const { profile } = useAuth()
+  const meId = profile?.id
+
+  return useMutation({
+    mutationFn: ({ placeId, wants }: { placeId: string; wants: boolean }) => votesApi.cast(placeId, wants),
+
+    onMutate: async ({ placeId, wants }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.votes })
+      const previous = queryClient.getQueryData<Vote[]>(queryKeys.votes)
+
+      // Голос кладётся под настоящим id. С заглушкой он выглядел бы как
+      // третий человек, и «оба хотим» на миг показало бы ложное совпадение.
+      if (meId) {
+        queryClient.setQueryData<Vote[]>(queryKeys.votes, (list = []) => [
+          ...list.filter((vote) => vote.placeId !== placeId || vote.userId !== meId),
+          { placeId, userId: meId, wants },
+        ])
+      }
+
+      return { previous }
+    },
+
+    onError: (_error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKeys.votes, context.previous)
+    },
+
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: queryKeys.votes }),
   })
 }

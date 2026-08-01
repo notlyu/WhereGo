@@ -13,6 +13,8 @@ import { PlacePage } from '@/features/place/PlacePage'
 // отдельные чанки. Форма, профиль и экраны следующих этапов грузятся по клику.
 const IdeasPage = lazy(() => import('@/features/feed/IdeasPage').then((m) => ({ default: m.IdeasPage })))
 const MapPage = lazy(() => import('@/features/map/MapPage').then((m) => ({ default: m.MapPage })))
+const MatchesPage = lazy(() => import('@/features/swipe/MatchesPage').then((m) => ({ default: m.MatchesPage })))
+const SwipePage = lazy(() => import('@/features/swipe/SwipePage').then((m) => ({ default: m.SwipePage })))
 const PlaceFormPage = lazy(() => import('@/features/place-form/PlaceFormPage').then((m) => ({ default: m.PlaceFormPage })))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const StubPage = lazy(() => import('@/features/stubs/StubPage').then((m) => ({ default: m.StubPage })))
@@ -37,26 +39,8 @@ export const router = createBrowserRouter([
       { path: 'profile', element: <LazyRoute><ProfilePage /></LazyRoute> },
 
       { path: 'map', element: <LazyRoute><MapPage /></LazyRoute> },
-      {
-        path: 'swipe',
-        element: (
-          <LazyRoute>
-            <StubPage
-              title="Свайпы"
-              stage={4}
-              what="Листаем места по одному, каждый голосует за себя. Совпадения попадают в «Оба хотим»."
-            />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'matches',
-        element: (
-          <LazyRoute>
-            <StubPage title="Оба хотим" stage={4} what="Места, которые оба отметили в свайпах, со счётчиком совпадений." />
-          </LazyRoute>
-        ),
-      },
+      { path: 'swipe', element: <LazyRoute><SwipePage /></LazyRoute> },
+      { path: 'matches', element: <LazyRoute><MatchesPage /></LazyRoute> },
       {
         path: 'plans',
         element: (

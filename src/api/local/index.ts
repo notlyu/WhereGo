@@ -1,4 +1,4 @@
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput, Vote } from '@/types/models'
 
 import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { LOCAL_PASSWORD, SEED_CATEGORIES, SEED_IDEAS, SEED_PLACES, SEED_PROFILES, SEED_REVIEWS } from './seed'
@@ -19,6 +19,7 @@ interface Store {
   places: Place[]
   reviews: Review[]
   photos: Photo[]
+  votes: Vote[]
 }
 
 function nowMinusDays(days: number): string {
@@ -84,7 +85,7 @@ function seedStore(): Store {
     author: profiles.get(r.authorId) ?? null,
   }))
 
-  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [] }
+  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [], votes: [] }
 }
 
 function read(): Store {
@@ -345,6 +346,26 @@ export const localBackend: Backend = {
       if (review.authorId !== me.id) throw new ApiError('Удалить можно только свой отзыв.')
       store.reviews = store.reviews.filter((r) => r.id !== id)
       write(store)
+    },
+  },
+
+  votes: {
+    async list() {
+      return read().votes ?? []
+    },
+
+    async cast(placeId, wants) {
+      const me = requireSession()
+      const store = read()
+      store.votes = store.votes ?? []
+
+      const vote: Vote = { placeId, userId: me.id, wants }
+      const existing = store.votes.findIndex((v) => v.placeId === placeId && v.userId === me.id)
+      if (existing >= 0) store.votes[existing] = vote
+      else store.votes.push(vote)
+
+      write(store)
+      return vote
     },
   },
 

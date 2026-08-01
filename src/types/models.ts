@@ -46,6 +46,16 @@ export interface Place {
   coverUrl: string | null
 }
 
+/**
+ * Голос в свайпах (В-1). Голос индивидуальный: у каждого свой по каждому месту.
+ * Ключ — пара (place_id, user_id), поэтому пересвайпать можно, а раздвоиться нет.
+ */
+export interface Vote {
+  placeId: string
+  userId: string
+  wants: boolean
+}
+
 /** Фотография места или отзыва. Файл в хранилище, здесь только ссылка. */
 export interface Photo {
   id: string

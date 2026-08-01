@@ -1,4 +1,4 @@
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput, Vote } from '@/types/models'
 
 /**
  * Контракт бэкенда.
@@ -48,6 +48,13 @@ export interface Backend {
     save(placeId: string, input: ReviewInput): Promise<Review>
     /** О-4: удалить можно только свой — держит RLS. */
     remove(id: string): Promise<void>
+  }
+
+  votes: {
+    /** Все голоса обоих: по ним считаются и совпадения, и «что я ещё не видел». */
+    list(): Promise<Vote[]>
+    /** В-1: повторный свайп по тому же месту переписывает свой голос. */
+    cast(placeId: string, wants: boolean): Promise<Vote>
   }
 
   photos: {
