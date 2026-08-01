@@ -439,7 +439,16 @@ VITE_SUPABASE_ANON_KEY
 
 ---
 
-## Шаг 11 · Бакет R2 для фотографий
+## Шаг 11 · Бакет R2 для фотографий — ОТМЕНЁН
+
+> [!warning] Не выполнять
+> R2 требует привязки платёжного метода, которого нет. Фото лежат в Supabase
+> Storage — см. шаг 12. Раздел оставлен на случай, если R2 станет доступен:
+> тогда меняется один адаптер в `src/api/`, экраны не трогаются.
+
+<details>
+<summary>Шаги для R2, если появится возможность оплатить</summary>
+
 
 Фото не хранятся в Supabase: там 1 ГБ и платный исходящий трафик, при
 превышении сервис отдаёт 402 и перестаёт отвечать. У R2 — 10 ГБ и бесплатный
@@ -499,4 +508,101 @@ curl -s -o /dev/null -w '%{http_code}\n' https://wherego.stanislav-biktimirovsck
 - Не создавать **R2 API tokens** (Access Key ID / Secret). При привязке они не
   нужны, а созданный ключ — это то, что можно случайно закоммитить.
 - Не включать публичный доступ к бакету.
+
+</details>
+
+---
+
+## Шаг 12 · Хранилище фотографий на Supabase
+
+Схема `storage` в Supabase закрыта даже для SQL Editor, поэтому почти всё
+делается мышкой. Запросом ставится только колонка `bytes` в таблице `photos`.
+
+### 12.1 Бакет
+
+🖱 **Storage → Buckets → New bucket**
+
+| Поле | Значение |
+|---|---|
+| Name | `photos` |
+| Public bucket | **включить** |
+| Restrict file size | `15` MB |
+| Restrict MIME types | `image/jpeg, image/png, image/webp, image/heic, image/heif` |
+
+`image/webp` обязателен: именно он уходит в хранилище после сжатия на клиенте.
+Остальные — для исходников с телефона.
+
+### 12.2 Права на файлы
+
+🖱 **Storage → Policies → New policy** на бакете `photos`.
+
+Supabase предлагает шаблоны. Нужен **«Give users access to only their own
+top level folder named as uid»** — он ровно про нашу схему: файл лежит по пути
+`<user_id>/<uuid>.webp`, и каждый распоряжается только своей папкой.
+
+Если шаблона нет, создать две политики вручную («For full customization»):
+
+**Загрузка**
+
+| Поле | Значение |
+|---|---|
+| Policy name | `photos_insert` |
+| Allowed operation | `INSERT` |
+| Target roles | `authenticated` |
+| WITH CHECK | `bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text` |
+
+**Удаление** (Ф-5: удаляет тот, кто загрузил)
+
+| Поле | Значение |
+|---|---|
+| Policy name | `photos_delete` |
+| Allowed operation | `DELETE` |
+| Target roles | `authenticated` |
+| USING | `bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text` |
+
+Политика на чтение не нужна: бакет публичный, ссылки работают без авторизации.
+
+> [!note] Почему не в миграции
+> `storage.objects` принадлежит роли `supabase_storage_admin`, а на создание
+> политик нужно владение таблицей. Из SQL Editor это даёт
+> `must be owner of table objects`. Правами не обходится — Supabase намеренно
+> оставил storage-политики интерфейсу.
+
+### 12.3 Колонка размера
+
+🖥 **Терминал**
+
+```bash
+pbcopy < /Users/ly/Desktop/WhereGO/supabase/migrations/0002_storage.sql
+```
+
+🗄 **SQL Editor** — вставить, **Run**. Ожидается `Success. No rows returned.`
+
+### 12.4 Перегенерировать типы
+
+🖥 **Терминал**
+
+```bash
+pnpm types:gen && pnpm build
+```
+
+```bash
+cd /Users/ly/Desktop/WhereGO && git add -A && git commit -m "Типы после миграции хранилища" && git push
+```
+
+### 12.5 Проверить
+
+🗄 **SQL Editor** — колонка на месте:
+
+```sql
+select count(*) as колонка_bytes from information_schema.columns
+where table_name = 'photos' and column_name = 'bytes';
+```
+
+Остальное проверяется руками: открыть место на боевом сайте, перетащить фото.
+Должно появиться на карточке и в ленте как обложка, а в профиле — вырасти
+счётчик занятого места.
+
+В списке бакетов 🖱 **Storage → Buckets** столбец POLICIES должен показывать
+не `0`, а число созданных политик.
 
