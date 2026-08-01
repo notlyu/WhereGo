@@ -13,10 +13,12 @@ interface Props {
   /** Куда крепить новые файлы: к месту или к отзыву (Ф-8). */
   target: PhotoTarget
   desktop?: boolean
+  /** Компактный вид для карточки отзыва: без заголовка и пояснения. */
+  compact?: boolean
 }
 
-/** Ф-1…Ф-6: до десяти фото, перетаскиванием или выбором, со статусом на файл. */
-export function PhotoUploader({ placeId, target, desktop = false }: Props) {
+/** Ф-1…Ф-6, Ф-8: до десяти фото, перетаскиванием или выбором, со статусом на файл. */
+export function PhotoUploader({ placeId, target, desktop = false, compact = false }: Props) {
   const { profile } = useAuth()
   const { data: photos = [] } = usePhotos(placeId)
   const remove = useDeletePhoto(placeId)
@@ -31,8 +33,11 @@ export function PhotoUploader({ placeId, target, desktop = false }: Props) {
     if (!busy && items.some((item) => item.status === 'done')) clearDone()
   }, [busy, items, clearDone])
 
-  const mine = photos.filter((photo) => photo.placeId !== null)
-  const left = MAX_PHOTOS_PER_PLACE - mine.length
+  // Запрос отдаёт фото места и фото всех его отзывов — берём только свою пачку.
+  const own = photos.filter((photo) =>
+    target.placeId ? photo.placeId === target.placeId : photo.reviewId === target.reviewId,
+  )
+  const left = MAX_PHOTOS_PER_PLACE - own.length
   const pending = items.filter((item) => item.status !== 'done')
 
   function accept(fileList: FileList | null) {
@@ -49,15 +54,17 @@ export function PhotoUploader({ placeId, target, desktop = false }: Props) {
 
   return (
     <div>
-      <div className="mb-2.5 flex items-baseline justify-between">
-        <div className="eyebrow">фото</div>
-        <div className="text-xs text-fg-dimmer">
-          {left > 0 ? `можно ещё ${left}` : `предел — ${MAX_PHOTOS_PER_PLACE}`}
+      {compact ? null : (
+        <div className="mb-2.5 flex items-baseline justify-between">
+          <div className="eyebrow">фото</div>
+          <div className="text-xs text-fg-dimmer">
+            {left > 0 ? `можно ещё ${left}` : `предел — ${MAX_PHOTOS_PER_PLACE}`}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-3 gap-2.5">
-        {mine.map((photo) => (
+      <div className={cn('grid gap-2.5', compact ? 'grid-cols-4' : 'grid-cols-3')}>
+        {own.map((photo) => (
           <PhotoTile
             key={photo.id}
             photo={photo}
@@ -102,10 +109,12 @@ export function PhotoUploader({ placeId, target, desktop = false }: Props) {
               dragging ? 'border-accent bg-accent/5 text-accent' : 'border-border-4 text-fg-dimmer hover:border-accent hover:text-accent',
             )}
           >
-            <ImagePlus size={20} />
-            <span className="font-mono text-[10.5px] leading-tight">
-              {desktop ? 'перетащи сюда' : 'добавить'}
-            </span>
+            <ImagePlus size={compact ? 16 : 20} />
+            {compact ? null : (
+              <span className="font-mono text-[10.5px] leading-tight">
+                {desktop ? 'перетащи сюда' : 'добавить'}
+              </span>
+            )}
           </button>
         ) : null}
       </div>
@@ -122,9 +131,11 @@ export function PhotoUploader({ placeId, target, desktop = false }: Props) {
         }}
       />
 
-      <div className="mt-2.5 text-[12.5px] leading-relaxed text-fg-dim">
-        Ужимаем до 1600px и WebP прямо в браузере — в хранилище уходит около 200 КБ вместо трёх мегабайт.
-      </div>
+      {compact ? null : (
+        <div className="mt-2.5 text-[12.5px] leading-relaxed text-fg-dim">
+          Ужимаем до 1600px и WebP прямо в браузере — в хранилище уходит около 200 КБ вместо трёх мегабайт.
+        </div>
+      )}
     </div>
   )
 }

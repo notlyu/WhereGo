@@ -4,7 +4,7 @@ import { ReviewCard } from '@/components/review/ReviewCard'
 import { ReviewForm } from '@/components/review/ReviewForm'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/auth-context'
-import { useDeleteReview, useReviews, useSaveReview } from '@/hooks/queries'
+import { useDeleteReview, usePhotos, useReviews, useSaveReview } from '@/hooks/queries'
 import { cn } from '@/lib/cn'
 import type { Place } from '@/types/models'
 
@@ -17,6 +17,7 @@ export function ReviewsSection({ place, desktop = false }: { place: Place; deskt
   const meId = profile?.id ?? null
 
   const { data: reviews = [], isPending } = useReviews(place.id)
+  const { data: photos = [] } = usePhotos(place.id)
   const save = useSaveReview(place.id)
   const remove = useDeleteReview(place.id)
   const [editing, setEditing] = useState(false)
@@ -70,7 +71,15 @@ export function ReviewsSection({ place, desktop = false }: { place: Place; deskt
       ) : null}
 
       {others.map((review) => (
-        <ReviewCard key={review.id} review={review} mine={false} desktop={desktop} onEdit={() => {}} onDelete={() => {}} />
+        <ReviewCard
+          key={review.id}
+          review={review}
+          mine={false}
+          desktop={desktop}
+          photos={photos.filter((photo) => photo.reviewId === review.id)}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
       ))}
 
       {!mine && !editing ? (
