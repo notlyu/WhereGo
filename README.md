@@ -42,14 +42,11 @@ corepack prepare pnpm@10.18.0 --activate
 
 ### С Supabase
 
-1. Создать проект Supabase.
-2. Применить `supabase/migrations/0001_init.sql`.
-3. **Authentication → Providers → Email → Allow new users to sign up = off.**
-   Пока регистрация открыта, любой посторонний получает роль `authenticated`,
-   а политики RLS честно отдают ему все ваши места.
-4. Завести два аккаунта вручную, проверить, что триггер создал профили.
-5. `cp .env.example .env.local`, вписать URL и **anon** ключ.
-6. `pnpm types:gen` — перегенерировать `src/types/database.ts`.
+Пошагово, с указанием где какая команда вводится — **[SETUP.md](SETUP.md)**.
+
+Коротко: создать проект → применить `supabase/migrations/0001_init.sql` →
+отключить публичную регистрацию → завести два аккаунта → положить URL и **anon**
+ключ в `.env.local` → `pnpm types:gen`.
 
 Приложение переключится на боевой бэкенд само, менять код не нужно.
 
