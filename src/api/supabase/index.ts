@@ -1,5 +1,5 @@
 import type { Database } from '@/types/database'
-import type { Category, Place, PlaceInput, PlaceStatus, Profile } from '@/types/models'
+import type { Category, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
 
 import { ApiError, type Backend } from '../backend'
 import { supabase } from './client'
@@ -7,6 +7,13 @@ import { supabase } from './client'
 type PlaceRow = Database['public']['Tables']['places']['Row']
 type CategoryRow = Database['public']['Tables']['categories']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
+type ReviewRow = Database['public']['Tables']['reviews']['Row']
+
+type ReviewRowJoined = ReviewRow & { author: ProfileRow | null }
+
+// Связь указывается явно по той же причине, что и у мест: между `reviews`
+// и `profiles` PostgREST видит не один путь.
+const REVIEW_SELECT = '*, author:profiles!reviews_author_id_fkey(*)'
 
 type PlaceRowJoined = PlaceRow & {
   category: CategoryRow | null
@@ -68,6 +75,19 @@ function toPlace(row: PlaceRowJoined): Place {
     author: row.author ? toProfile(row.author) : null,
     rating: ratings.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : null,
     coverUrl: photos[0]?.url ?? null,
+  }
+}
+
+function toReview(row: ReviewRowJoined): Review {
+  return {
+    id: row.id,
+    placeId: row.place_id,
+    authorId: row.author_id,
+    rating: row.rating,
+    text: row.text,
+    visitedAt: row.visited_at,
+    createdAt: row.created_at,
+    author: row.author ? toProfile(row.author) : null,
   }
 }
 
@@ -224,6 +244,45 @@ export const supabaseBackend: Backend = {
       // М-5: не update, а функция с security definer — общая политика
       // «правит только автор» иначе не даст сменить статус чужому месту.
       const { error } = await supabase.rpc('set_place_status', { p_place_id: id, p_status: status })
+      if (error) throw new ApiError(error.message)
+    },
+  },
+
+  reviews: {
+    async listForPlace(placeId) {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(REVIEW_SELECT)
+        .eq('place_id', placeId)
+        .order('created_at')
+      if (error) throw new ApiError(error.message)
+      return (data as unknown as ReviewRowJoined[]).map(toReview)
+    },
+
+    async save(placeId, input: ReviewInput) {
+      const authorId = await requireUserId()
+      // О-1: ограничение `unique (place_id, author_id)` превращает повторную
+      // вставку в правку. Без onConflict запрос упал бы с 23505.
+      const { data, error } = await supabase
+        .from('reviews')
+        .upsert(
+          {
+            place_id: placeId,
+            author_id: authorId,
+            rating: input.rating,
+            text: input.text,
+            visited_at: input.visitedAt,
+          },
+          { onConflict: 'place_id,author_id' },
+        )
+        .select(REVIEW_SELECT)
+        .single()
+      if (error) throw new ApiError(error.message)
+      return toReview(data as unknown as ReviewRowJoined)
+    },
+
+    async remove(id) {
+      const { error } = await supabase.from('reviews').delete().eq('id', id)
       if (error) throw new ApiError(error.message)
     },
   },

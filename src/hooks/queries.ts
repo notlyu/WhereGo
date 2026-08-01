@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { categories as categoriesApi, places as placesApi } from '@/api'
-import type { Place, PlaceInput, PlaceStatus } from '@/types/models'
+import { categories as categoriesApi, places as placesApi, reviews as reviewsApi } from '@/api'
+import type { Place, PlaceInput, PlaceStatus, ReviewInput } from '@/types/models'
 
 export const queryKeys = {
   places: ['places'] as const,
   place: (id: string) => ['places', id] as const,
   categories: ['categories'] as const,
+  reviews: (placeId: string) => ['reviews', placeId] as const,
 }
 
 export function usePlaces() {
@@ -122,6 +123,59 @@ export function useDeleteCategory() {
     mutationFn: (id: string) => categoriesApi.remove(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.categories })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.places })
+    },
+  })
+}
+
+export function useReviews(placeId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.reviews(placeId ?? ''),
+    queryFn: () => reviewsApi.listForPlace(placeId as string),
+    enabled: Boolean(placeId),
+  })
+}
+
+/**
+ * О-1, О-7: сохранение отзыва — upsert, повторное правит существующий.
+ *
+ * О-6 живёт здесь, а не в адаптерах: правило «отзыв переводит место в
+ * `visited`» одно на оба бэкенда, и дублировать его в двух реализациях
+ * значило бы завести два места, где оно может разойтись. Через этот хук
+ * проходит весь интерфейс, другого пути оставить отзыв нет.
+ */
+export function useSaveReview(placeId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: ReviewInput) => {
+      const review = await reviewsApi.save(placeId, input)
+
+      const place = queryClient.getQueryData<Place>(queryKeys.place(placeId))
+      if (place && place.status !== 'visited') {
+        // Сбой здесь не должен отменять уже сохранённый отзыв: статус —
+        // приятное дополнение, а текст пользователь писал руками.
+        await placesApi.setStatus(placeId, 'visited').catch(() => undefined)
+      }
+
+      return review
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reviews(placeId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
+      // Средняя оценка и статус видны в ленте — её тоже освежаем.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.places })
+    },
+  })
+}
+
+export function useDeleteReview(placeId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => reviewsApi.remove(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reviews(placeId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.places })
     },
   })

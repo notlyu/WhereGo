@@ -22,4 +22,5 @@ export const backend: Backend = hasSupabaseConfig ? supabaseBackend : localBacke
 export const auth = backend.auth
 export const categories = backend.categories
 export const places = backend.places
+export const reviews = backend.reviews
 export const isLocalBackend = backend.kind === 'local'

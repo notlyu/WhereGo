@@ -329,6 +329,29 @@ export const SEED_PLACES: SeedPlace[] = [
   },
 ]
 
+/** Отзывы к посещённым местам. Ровно по одному от каждого — как требует О-1. */
+export const SEED_REVIEWS: {
+  id: string
+  placeId: string
+  authorId: string
+  rating: number
+  text: string
+  daysAgo: number
+}[] = [
+  { id: 'r1', placeId: 'p2', authorId: 'u-alina', rating: 4, text: 'Настойка на облепихе — топ. Но очень громко, я устала к полуночи.', daysAgo: 150 },
+  { id: 'r2', placeId: 'p2', authorId: 'u-stas', rating: 5, text: 'Ждали столик два часа. За эти деньги можно лучше — пойдём пораньше.', daysAgo: 150 },
+  { id: 'r3', placeId: 'p3', authorId: 'u-alina', rating: 5, text: 'Тут мы просидели три часа и никто слова не сказал. Люблю.', daysAgo: 163 },
+  { id: 'r4', placeId: 'p3', authorId: 'u-stas', rating: 4, text: 'Кофе отличный, эклер средний. Но идём сюда каждый раз.', daysAgo: 163 },
+  { id: 'r5', placeId: 'p6', authorId: 'u-alina', rating: 5, text: 'Тот самый закат. Хочу так каждую пятницу.', daysAgo: 81 },
+  { id: 'r6', placeId: 'p6', authorId: 'u-stas', rating: 4, text: 'Ветрено, бери куртку. В остальном идеально.', daysAgo: 81 },
+  { id: 'r7', placeId: 'p10', authorId: 'u-alina', rating: 2, text: 'Дорого и толпа. Лучше просто на крышу к друзьям.', daysAgo: 94 },
+  { id: 'r8', placeId: 'p10', authorId: 'u-stas', rating: 3, text: 'Вид ок, всё остальное — нет. Очередь сорок минут.', daysAgo: 94 },
+  { id: 'r9', placeId: 'p14', authorId: 'u-stas', rating: 5, text: 'Пять пышек на двоих и кофе из бака. Ничего не изменилось с детства.', daysAgo: 203 },
+  { id: 'r10', placeId: 'p14', authorId: 'u-alina', rating: 4, text: 'Очередь на улице в минус десять — но внутри тепло и сладко.', daysAgo: 203 },
+  { id: 'r11', placeId: 'p19', authorId: 'u-alina', rating: 5, text: 'Ушли с двумя книгами и планом вернуться в мае. Кофе наверху отличный.', daysAgo: 108 },
+  { id: 'r12', placeId: 'p19', authorId: 'u-stas', rating: 4, text: 'Людно в выходные. Приходить лучше к открытию.', daysAgo: 108 },
+]
+
 /** Идеи — места без адреса (М-7). */
 export const SEED_IDEAS: { id: string; title: string; authorId: string; daysAgo: number }[] = [
   { id: 'i1', title: 'Снять дачу на выходные зимой', authorId: 'u-stas', daysAgo: 21 },

@@ -46,6 +46,29 @@ export interface Place {
   coverUrl: string | null
 }
 
+/**
+ * Отзыв. О-1: один на место от каждого — ограничение стоит в БД
+ * (`unique (place_id, author_id)`), а не только в интерфейсе.
+ */
+export interface Review {
+  id: string
+  placeId: string
+  authorId: string
+  /** 1…5, ограничение `check` в БД. */
+  rating: number
+  text: string | null
+  /** Дата посещения в формате YYYY-MM-DD; null — не указали. */
+  visitedAt: string | null
+  createdAt: string
+  author: Profile | null
+}
+
+export interface ReviewInput {
+  rating: number
+  text: string | null
+  visitedAt: string | null
+}
+
 /** Поля, которые пользователь заполняет в форме места. */
 export interface PlaceInput {
   title: string

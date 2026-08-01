@@ -1,7 +1,7 @@
-import type { Category, Place, PlaceInput, PlaceStatus, Profile } from '@/types/models'
+import type { Category, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
 
 import { ApiError, type Backend } from '../backend'
-import { LOCAL_PASSWORD, SEED_CATEGORIES, SEED_IDEAS, SEED_PLACES, SEED_PROFILES } from './seed'
+import { LOCAL_PASSWORD, SEED_CATEGORIES, SEED_IDEAS, SEED_PLACES, SEED_PROFILES, SEED_REVIEWS } from './seed'
 
 /**
  * Локальный бэкенд: те же операции, но поверх localStorage.
@@ -17,6 +17,7 @@ const SESSION_KEY = 'kuda-poyti/local-session/v1'
 interface Store {
   categories: Category[]
   places: Place[]
+  reviews: Review[]
 }
 
 function nowMinusDays(days: number): string {
@@ -71,7 +72,18 @@ function seedStore(): Store {
     coverUrl: null,
   }))
 
-  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas] }
+  const reviews: Review[] = SEED_REVIEWS.map((r) => ({
+    id: r.id,
+    placeId: r.placeId,
+    authorId: r.authorId,
+    rating: r.rating,
+    text: r.text,
+    visitedAt: nowMinusDays(r.daysAgo).slice(0, 10),
+    createdAt: nowMinusDays(r.daysAgo),
+    author: profiles.get(r.authorId) ?? null,
+  }))
+
+  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews }
 }
 
 function read(): Store {
@@ -117,10 +129,15 @@ function requireSession(): Profile {
 /** Дозаполняет связи, которые в Postgres пришли бы join-ом. */
 function hydrate(place: Place, store: Store): Place {
   const seedProfile = SEED_PROFILES.find((p) => p.id === place.authorId)
+  // О-5: средняя оценка не хранится, а считается — как в supabase-адаптере,
+  // где она выводится из вложенных `reviews(rating)`.
+  const ratings = (store.reviews ?? []).filter((r) => r.placeId === place.id)
+
   return {
     ...place,
     category: store.categories.find((c) => c.id === place.categoryId) ?? null,
     author: seedProfile ? { id: seedProfile.id, displayName: seedProfile.displayName, avatarUrl: seedProfile.avatarUrl } : null,
+    rating: ratings.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : null,
   }
 }
 
@@ -276,6 +293,51 @@ export const localBackend: Backend = {
       if (!place) throw new ApiError('Место не найдено.')
       place.status = status
       place.updatedAt = new Date().toISOString()
+      write(store)
+    },
+  },
+
+  reviews: {
+    async listForPlace(placeId) {
+      const store = read()
+      return (store.reviews ?? [])
+        .filter((r) => r.placeId === placeId)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    },
+
+    async save(placeId, input: ReviewInput) {
+      const me = requireSession()
+      const store = read()
+      store.reviews = store.reviews ?? []
+
+      // О-1: один отзыв на место от пользователя. В Postgres это `unique`,
+      // здесь — поиск существующего перед вставкой.
+      const existing = store.reviews.find((r) => r.placeId === placeId && r.authorId === me.id)
+      const review: Review = existing
+        ? { ...existing, rating: input.rating, text: input.text, visitedAt: input.visitedAt }
+        : {
+            id: crypto.randomUUID(),
+            placeId,
+            authorId: me.id,
+            rating: input.rating,
+            text: input.text,
+            visitedAt: input.visitedAt,
+            createdAt: new Date().toISOString(),
+            author: me,
+          }
+
+      store.reviews = existing ? store.reviews.map((r) => (r.id === existing.id ? review : r)) : [...store.reviews, review]
+      write(store)
+      return review
+    },
+
+    async remove(id) {
+      const me = requireSession()
+      const store = read()
+      const review = (store.reviews ?? []).find((r) => r.id === id)
+      if (!review) return
+      if (review.authorId !== me.id) throw new ApiError('Удалить можно только свой отзыв.')
+      store.reviews = store.reviews.filter((r) => r.id !== id)
       write(store)
     },
   },

@@ -15,6 +15,8 @@ import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
 import { PRICE_LABEL, type Place, type PlaceStatus, type Profile } from '@/types/models'
 
+import { ReviewsSection } from './ReviewsSection'
+
 export function PlacePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -91,7 +93,9 @@ export function PlacePage() {
             </div>
 
             <div className="mt-[34px] text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">отзывы</div>
-            <div className="mt-3.5 text-[15px] leading-relaxed text-fg-dim">{reviewsPlaceholder(place)}</div>
+            <div className="mt-3.5">
+              <ReviewsSection place={place} desktop />
+            </div>
           </div>
 
           <div className="sticky top-[34px]">{info}</div>
@@ -121,17 +125,12 @@ export function PlacePage() {
 
         <div className="my-6 h-px bg-[#262626]" />
         <div className="eyebrow">что мы подумали</div>
-        <div className="mt-3 text-[15px] leading-[1.55] text-fg-dim">{reviewsPlaceholder(place)}</div>
+        <div className="mt-3.5">
+          <ReviewsSection place={place} />
+        </div>
       </div>
     </article>
   )
-}
-
-/** О-1…О-7 — Этап 2. Формулировка пустого состояния из ТЗ (С-4). */
-function reviewsPlaceholder(place: Place): string {
-  return place.status === 'visited'
-    ? 'Были, но отзывов ещё нет. Отзывы появятся на следующем этапе.'
-    : 'Ещё не были — отзывов нет. Появятся, когда сходим.'
 }
 
 interface InfoProps {

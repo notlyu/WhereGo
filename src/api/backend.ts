@@ -1,4 +1,4 @@
-import type { Category, Place, PlaceInput, PlaceStatus, Profile } from '@/types/models'
+import type { Category, Place, PlaceInput, PlaceStatus, Profile, Review, ReviewInput } from '@/types/models'
 
 /**
  * Контракт бэкенда.
@@ -37,6 +37,17 @@ export interface Backend {
     remove(id: string): Promise<void>
     /** М-5: статус меняет любой авторизованный, через `set_place_status`. */
     setStatus(id: string, status: PlaceStatus): Promise<void>
+  }
+
+  reviews: {
+    listForPlace(placeId: string): Promise<Review[]>
+    /**
+     * О-1: у пользователя один отзыв на место, поэтому не create, а upsert.
+     * Повторное сохранение правит существующий, а не заводит второй.
+     */
+    save(placeId: string, input: ReviewInput): Promise<Review>
+    /** О-4: удалить можно только свой — держит RLS. */
+    remove(id: string): Promise<void>
   }
 }
 
