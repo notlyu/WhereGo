@@ -196,7 +196,7 @@ function IdeaRow({ idea, me, desktop = false }: { idea: Place; me: Profile | nul
       <div className="min-w-0 flex-1">
         <div className="line-clamp-2 text-base font-semibold text-fg">{idea.title}</div>
         <div className="mt-1 truncate text-[13px] text-fg-dim">
-          добавил{mine ? 'а' : ''}: {idea.author?.displayName ?? '—'} · {formatAgo(idea.createdAt)}
+          добавлено: {idea.author?.displayName ?? '—'} · {formatAgo(idea.createdAt)}
         </div>
       </div>
 

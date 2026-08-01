@@ -9,7 +9,7 @@ export function formatDate(iso: string): string {
   return format(date, isThisYear(date) ? 'd MMMM' : 'd MMMM yyyy', { locale: ru })
 }
 
-/** «3 дня назад» — для строки «добавил: Ly · 3 дня назад». */
+/** «3 дня назад» — для строки «добавлено: Алина · 3 дня назад». */
 export function formatAgo(iso: string): string {
   return formatDistanceToNowStrict(parseISO(iso), { locale: ru, addSuffix: true })
 }

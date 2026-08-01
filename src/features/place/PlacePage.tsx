@@ -219,7 +219,7 @@ function PlaceInfo({ place, mine, desktop, onStatus, onEdit, onDelete, deleting,
       <div className={cn('flex items-center gap-3 text-[13px] text-fg-dim', desktop ? 'mt-4' : 'mt-5')}>
         {desktop ? null : <Avatar name={authorName} url={place.author?.avatarUrl} size={28} />}
         <div>
-          добавил{mine ? 'а' : ''}: {authorName} · {formatDate(place.createdAt)}
+          добавлено: {authorName} · {formatDate(place.createdAt)}
           {place.price ? ` · ${PRICE_LABEL[place.price]}` : ''}
         </div>
       </div>

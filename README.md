@@ -37,7 +37,7 @@ corepack prepare pnpm@10.18.0 --activate
 4 идеи из прототипа. Экраны можно открыть и потрогать до того, как заведён
 бэкенд.
 
-Демо-вход: `ly@example.com` или `me@example.com`, пароль `demo1234`.
+Демо-вход: `stas@example.com` или `alina@example.com`, пароль `demo1234`.
 Сбросить данные — кнопка в профиле.
 
 ### С Supabase
