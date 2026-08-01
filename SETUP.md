@@ -58,6 +58,10 @@ pbcopy < /Users/ly/Desktop/WhereGO/supabase/migrations/0001_init.sql
 
 🗄 **SQL Editor** — новый запрос, `Cmd+V`, **Run**.
 
+Перед запуском проверьте роль: над полем ввода есть переключатель, должно стоять
+**postgres**. Миграция ставит триггер на `auth.users`, под ролями `anon` или
+`authenticated` она упадёт с `permission denied for table users`.
+
 Первая строка вставленного должна быть `-- ====...`, последняя —
 `grant update on profiles to authenticated;`
 
@@ -93,6 +97,16 @@ select emoji, name from categories order by sort_order;
 ```
 
 Девять категорий, от «☕ Кафе» до «📍 Другое».
+
+И триггер, ради которого важен порядок шагов:
+
+```sql
+select tgname from pg_trigger
+where tgrelid = 'auth.users'::regclass and not tgisinternal;
+```
+
+Должно вернуться `on_auth_user_created`. Пусто при существующих таблицах —
+миграция прошла частично: применить `reset.sql`, затем `0001_init.sql` заново.
 
 ---
 
@@ -133,14 +147,26 @@ select emoji, name from categories order by sort_order;
 🗄 **SQL Editor**
 
 ```sql
-select p.display_name, u.email, u.email_confirmed_at is not null as confirmed
-from profiles p join auth.users u on u.id = p.id;
+select display_name, created_at from profiles order by created_at;
 ```
 
-Две строки, нужные имена, `confirmed = true`.
+Две строки с нужными именами. Профили создаются только триггером из
+`auth.users`, так что это и есть проверка, что он отработал.
 
 Пусто или одна строка — аккаунты создавались до миграции. Удалить их в
 **Authentication → Users** и завести заново.
+
+Подтверждение почты видно глазами в 🖱 **Authentication → Users**, в колонке со
+статусом.
+
+> [!danger] Не выполняйте `GRANT SELECT ON auth.users TO authenticated`
+> Postgres предлагает это в HINT при ошибке `permission denied for table users`,
+> когда SQL Editor работает под ролью `anon` или `authenticated`.
+>
+> Грант откроет любому вошедшему пользователю всю таблицу авторизации — почты,
+> хеши сброса пароля, метаданные обоих аккаунтов — и отдаст её через API прямо
+> в браузер. Правильное лечение — вернуть роль редактора на **postgres**
+> и не трогать `auth.users` из приложения вовсе.
 
 ---
 
