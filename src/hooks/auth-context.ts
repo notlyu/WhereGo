@@ -9,6 +9,10 @@ export interface AuthValue {
   ready: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  /** А-6, Н-2: правка своего профиля. Обновляет и то, что показано на экране. */
+  refresh: (patch: { displayName?: string; avatarUrl?: string | null }) => Promise<void>
+  /** А-7, Н-3. */
+  changePassword: (next: string) => Promise<void>
 }
 
 export const AuthContext = createContext<AuthValue | null>(null)

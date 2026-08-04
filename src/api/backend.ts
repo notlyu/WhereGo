@@ -20,7 +20,19 @@ export interface Backend {
     signOut(): Promise<void>
     /** Подписка на смену сессии. Возвращает функцию отписки. */
     subscribe(onChange: (profile: Profile | null) => void): () => void
+    /** А-6, Н-2: имя и аватар. */
+    updateProfile(patch: { displayName?: string; avatarUrl?: string | null }): Promise<Profile>
+    /** А-7, Н-3: смена пароля. Текущий пароль спрашивает сам Supabase. */
+    changePassword(next: string): Promise<void>
   }
+
+  /**
+   * Н-1: резервная копия — все записи в одном объекте.
+   *
+   * Кнопкой, а не по расписанию: любой внешний cron — новая зависимость,
+   * которая тихо отвалится, и узнаешь об этом, когда копия понадобится.
+   */
+  backup(): Promise<Record<string, unknown>>
 
   categories: {
     list(): Promise<Category[]>
@@ -41,6 +53,8 @@ export interface Backend {
 
   reviews: {
     listForPlace(placeId: string): Promise<Review[]>
+    /** И-1: все отзывы разом — из них строится хронология походов. */
+    listAll(): Promise<Review[]>
     /**
      * О-1: у пользователя один отзыв на место, поэтому не create, а upsert.
      * Повторное сохранение правит существующий, а не заводит второй.

@@ -47,7 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear()
   }, [queryClient])
 
-  const value = useMemo<AuthValue>(() => ({ profile, ready, signIn, signOut }), [profile, ready, signIn, signOut])
+  const refresh = useCallback(
+    async (patch: { displayName?: string; avatarUrl?: string | null }) => {
+      const next = await auth.updateProfile(patch)
+      setProfile(next)
+      // Имя автора показано в ленте и на местах — их надо перечитать.
+      void queryClient.invalidateQueries()
+    },
+    [queryClient],
+  )
+
+  const changePassword = useCallback(async (next: string) => {
+    await auth.changePassword(next)
+  }, [])
+
+  const value = useMemo<AuthValue>(
+    () => ({ profile, ready, signIn, signOut, refresh, changePassword }),
+    [profile, ready, signIn, signOut, refresh, changePassword],
+  )
 
   return <AuthContext value={value}>{children}</AuthContext>
 }

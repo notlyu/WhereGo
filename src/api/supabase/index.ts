@@ -217,6 +217,45 @@ export const supabaseBackend: Backend = {
       })
       return () => data.subscription.unsubscribe()
     },
+
+    async updateProfile(patch) {
+      const id = await requireUserId()
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          ...(patch.displayName !== undefined ? { display_name: patch.displayName } : {}),
+          ...(patch.avatarUrl !== undefined ? { avatar_url: patch.avatarUrl } : {}),
+        })
+        .eq('id', id)
+        .select('*')
+        .single()
+      if (error) throw new ApiError(error.message)
+      return toProfile(data)
+    },
+
+    async changePassword(next) {
+      const { error } = await supabase.auth.updateUser({ password: next })
+      if (error) throw new ApiError(error.message)
+    },
+  },
+
+  async backup() {
+    // Забираем всё, до чего дотягиваются политики чтения. Фото — ссылками:
+    // сами файлы лежат в хранилище и в JSON им не место.
+    const tables = ['profiles', 'categories', 'places', 'reviews', 'photos', 'tags', 'place_tags', 'plans', 'place_votes'] as const
+
+    const dump: Record<string, unknown> = {
+      exportedAt: new Date().toISOString(),
+      source: 'supabase',
+    }
+
+    for (const table of tables) {
+      const { data, error } = await supabase.from(table).select('*')
+      if (error) throw new ApiError(`${table}: ${error.message}`)
+      dump[table] = data
+    }
+
+    return dump
   },
 
   categories: {
@@ -308,6 +347,12 @@ export const supabaseBackend: Backend = {
         .select(REVIEW_SELECT)
         .eq('place_id', placeId)
         .order('created_at')
+      if (error) throw new ApiError(error.message)
+      return (data as unknown as ReviewRowJoined[]).map(toReview)
+    },
+
+    async listAll() {
+      const { data, error } = await supabase.from('reviews').select(REVIEW_SELECT).order('visited_at', { ascending: false })
       if (error) throw new ApiError(error.message)
       return (data as unknown as ReviewRowJoined[]).map(toReview)
     },

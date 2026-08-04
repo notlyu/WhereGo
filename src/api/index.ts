@@ -27,4 +27,5 @@ export const photos = backend.photos
 export const votes = backend.votes
 export const plans = backend.plans
 export const tags = backend.tags
+export const backup = backend.backup
 export const isLocalBackend = backend.kind === 'local'

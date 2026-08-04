@@ -15,6 +15,7 @@ export const queryKeys = {
   votes: ['votes'] as const,
   plans: ['plans'] as const,
   tags: ['tags'] as const,
+  allReviews: ['reviews', 'all'] as const,
 }
 
 export function usePlaces() {
@@ -151,6 +152,13 @@ export function useReviews(placeId: string | undefined) {
  * значило бы завести два места, где оно может разойтись. Через этот хук
  * проходит весь интерфейс, другого пути оставить отзыв нет.
  */
+export function useAllReviews() {
+  return useQuery({
+    queryKey: queryKeys.allReviews,
+    queryFn: () => reviewsApi.listAll(),
+  })
+}
+
 export function useSaveReview(placeId: string) {
   const queryClient = useQueryClient()
 
@@ -169,6 +177,7 @@ export function useSaveReview(placeId: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reviews(placeId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allReviews })
       void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
       // Средняя оценка и статус видны в ленте — её тоже освежаем.
       void queryClient.invalidateQueries({ queryKey: queryKeys.places })
@@ -182,6 +191,7 @@ export function useDeleteReview(placeId: string) {
     mutationFn: (id: string) => reviewsApi.remove(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reviews(placeId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allReviews })
       void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.places })
     },

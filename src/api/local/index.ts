@@ -200,6 +200,26 @@ export const localBackend: Backend = {
       listeners.add(onChange)
       return () => listeners.delete(onChange)
     },
+
+    async updateProfile(patch) {
+      const me = requireSession()
+      const seed = SEED_PROFILES.find((p) => p.id === me.id)
+      if (seed) {
+        if (patch.displayName !== undefined) seed.displayName = patch.displayName
+        if (patch.avatarUrl !== undefined) seed.avatarUrl = patch.avatarUrl
+      }
+      notify()
+      return { ...me, ...patch } as Profile
+    },
+
+    async changePassword() {
+      throw new ApiError('В демо-режиме пароль не меняется — подключите Supabase.')
+    },
+  },
+
+  async backup() {
+    const store = read()
+    return { exportedAt: new Date().toISOString(), source: 'local', ...store }
   },
 
   categories: {
@@ -319,6 +339,10 @@ export const localBackend: Backend = {
       return (store.reviews ?? [])
         .filter((r) => r.placeId === placeId)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    },
+
+    async listAll() {
+      return (read().reviews ?? []).slice().sort((a, b) => (b.visitedAt ?? '').localeCompare(a.visitedAt ?? ''))
     },
 
     async save(placeId, input: ReviewInput) {

@@ -16,6 +16,9 @@ const MapPage = lazy(() => import('@/features/map/MapPage').then((m) => ({ defau
 const MatchesPage = lazy(() => import('@/features/swipe/MatchesPage').then((m) => ({ default: m.MatchesPage })))
 const SwipePage = lazy(() => import('@/features/swipe/SwipePage').then((m) => ({ default: m.SwipePage })))
 const PlansPage = lazy(() => import('@/features/plans/PlansPage').then((m) => ({ default: m.PlansPage })))
+const HistoryPage = lazy(() => import('@/features/history/HistoryPage').then((m) => ({ default: m.HistoryPage })))
+const YearPage = lazy(() => import('@/features/history/YearPage').then((m) => ({ default: m.YearPage })))
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const PlaceFormPage = lazy(() => import('@/features/place-form/PlaceFormPage').then((m) => ({ default: m.PlaceFormPage })))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const StubPage = lazy(() => import('@/features/stubs/StubPage').then((m) => ({ default: m.StubPage })))
@@ -43,30 +46,9 @@ export const router = createBrowserRouter([
       { path: 'swipe', element: <LazyRoute><SwipePage /></LazyRoute> },
       { path: 'matches', element: <LazyRoute><MatchesPage /></LazyRoute> },
       { path: 'plans', element: <LazyRoute><PlansPage /></LazyRoute> },
-      {
-        path: 'history',
-        element: (
-          <LazyRoute>
-            <StubPage title="Мы были тут" stage={5} what="Хронология походов со счётчиком: где были, когда и что подумали." />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'year',
-        element: (
-          <LazyRoute>
-            <StubPage title="Итоги года" stage={5} what="Статистика за год и полосы по категориям — куда мы ходим чаще всего." />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'settings',
-        element: (
-          <LazyRoute>
-            <StubPage title="Настройки" stage={5} what="Резервная копия одной кнопкой, смена имени, аватара и пароля." />
-          </LazyRoute>
-        ),
-      },
+      { path: 'history', element: <LazyRoute><HistoryPage /></LazyRoute> },
+      { path: 'year', element: <LazyRoute><YearPage /></LazyRoute> },
+      { path: 'settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
 
       {
         path: '*',
