@@ -1,7 +1,8 @@
-import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router'
 
 import { AppShell } from '@/components/layout/AppShell'
+import { ErrorScreen } from '@/components/layout/ErrorScreen'
+import { lazyImport } from '@/components/layout/lazyImport'
 import { LazyRoute } from '@/components/layout/LazyRoute'
 import { RequireAuth } from '@/components/layout/RequireAuth'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -11,22 +12,22 @@ import { PlacePage } from '@/features/place/PlacePage'
 // П-1: бюджет бандла — 250 КБ gzip, и MapLibre на Этапе 3 съест больше половины.
 // Поэтому всё, что не на горячем пути «вошёл → лента → место», уезжает в
 // отдельные чанки. Форма, профиль и экраны следующих этапов грузятся по клику.
-const IdeasPage = lazy(() => import('@/features/feed/IdeasPage').then((m) => ({ default: m.IdeasPage })))
-const MapPage = lazy(() => import('@/features/map/MapPage').then((m) => ({ default: m.MapPage })))
-const MatchesPage = lazy(() => import('@/features/swipe/MatchesPage').then((m) => ({ default: m.MatchesPage })))
-const SwipePage = lazy(() => import('@/features/swipe/SwipePage').then((m) => ({ default: m.SwipePage })))
-const PlansPage = lazy(() => import('@/features/plans/PlansPage').then((m) => ({ default: m.PlansPage })))
-const HistoryPage = lazy(() => import('@/features/history/HistoryPage').then((m) => ({ default: m.HistoryPage })))
-const YearPage = lazy(() => import('@/features/history/YearPage').then((m) => ({ default: m.YearPage })))
-const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
-const PlaceFormPage = lazy(() => import('@/features/place-form/PlaceFormPage').then((m) => ({ default: m.PlaceFormPage })))
-const ProfilePage = lazy(() => import('@/features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
-const StubPage = lazy(() => import('@/features/stubs/StubPage').then((m) => ({ default: m.StubPage })))
+const IdeasPage = lazyImport(() => import('@/features/feed/IdeasPage'), 'IdeasPage')
+const MapPage = lazyImport(() => import('@/features/map/MapPage'), 'MapPage')
+const MatchesPage = lazyImport(() => import('@/features/swipe/MatchesPage'), 'MatchesPage')
+const SwipePage = lazyImport(() => import('@/features/swipe/SwipePage'), 'SwipePage')
+const PlansPage = lazyImport(() => import('@/features/plans/PlansPage'), 'PlansPage')
+const HistoryPage = lazyImport(() => import('@/features/history/HistoryPage'), 'HistoryPage')
+const YearPage = lazyImport(() => import('@/features/history/YearPage'), 'YearPage')
+const SettingsPage = lazyImport(() => import('@/features/settings/SettingsPage'), 'SettingsPage')
+const PlaceFormPage = lazyImport(() => import('@/features/place-form/PlaceFormPage'), 'PlaceFormPage')
+const ProfilePage = lazyImport(() => import('@/features/profile/ProfilePage'), 'ProfilePage')
+const StubPage = lazyImport(() => import('@/features/stubs/StubPage'), 'StubPage')
 
 // Карта экранов — из Design-System.md. Экраны этапов 3–5 заведены заглушками,
 // чтобы навигация была целой с самого начала.
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  { path: '/login', element: <LoginPage />, errorElement: <ErrorScreen /> },
   {
     path: '/',
     element: (
@@ -34,6 +35,9 @@ export const router = createBrowserRouter([
         <AppShell />
       </RequireAuth>
     ),
+    // Без этого React Router показывает свой английский экран с советом
+    // разработчику — на боевом сайте это выглядит как полная поломка.
+    errorElement: <ErrorScreen />,
     children: [
       { index: true, element: <FeedPage /> },
       { path: 'ideas', element: <LazyRoute><IdeasPage /></LazyRoute> },
