@@ -8,6 +8,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Segmented } from '@/components/ui/Segmented'
 import { cn } from '@/lib/cn'
 
+import { usePagedList } from '@/hooks/usePagedList'
+
 import { FilterSheet } from './FilterSheet'
 import type { FeedData } from './useFeedData'
 
@@ -19,6 +21,9 @@ export function MobileFeed(data: FeedData) {
   const navigate = useNavigate()
   const [sheetOpen, setSheetOpen] = useState(false)
   const { list, sections, filters, setFilter, activeCount, categories, meId } = data
+
+  // Л-9: показываем по 20, дальше по кнопке.
+  const paged = usePagedList(list)
 
   const activeCategory = categories.find((category) => category.id === filters.category)
   const filterLabel = `${activeCategory ? activeCategory.name : 'Все категории'} · ${list.length}`
@@ -118,7 +123,7 @@ export function MobileFeed(data: FeedData) {
 
       {filters.view === 'cards' ? (
         <div className="flex flex-col gap-4">
-          {list.map((place) => (
+          {paged.page.map((place) => (
             <PlaceCard key={place.id} place={place} meId={meId} here={data.here} />
           ))}
         </div>
@@ -126,7 +131,7 @@ export function MobileFeed(data: FeedData) {
 
       {filters.view === 'compact' ? (
         <div className="flex flex-col gap-2">
-          {list.map((place) => (
+          {paged.page.map((place) => (
             <PlaceCompactRow key={place.id} place={place} meId={meId} here={data.here} />
           ))}
         </div>
@@ -158,6 +163,17 @@ export function MobileFeed(data: FeedData) {
         </div>
       ) : null}
 
+      {/* Полки режутся по категориям и так — кнопка нужна только сплошным спискам. */}
+      {paged.hasMore && filters.view !== 'rails' ? (
+        <button
+          type="button"
+          onClick={paged.showMore}
+          className="mt-4 h-12 w-full cursor-pointer rounded-pill bg-surface-2 text-sm font-semibold text-fg transition-colors hover:bg-surface-4"
+        >
+          Показать ещё · осталось {paged.rest}
+        </button>
+      ) : null}
+
       <FilterSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
@@ -169,6 +185,7 @@ export function MobileFeed(data: FeedData) {
         people={data.people}
         meId={meId}
         resultCount={list.length}
+        tagNames={data.tagNames}
       />
     </div>
   )

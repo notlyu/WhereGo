@@ -16,6 +16,7 @@ interface Props {
   people: Profile[]
   meId: string | null
   resultCount: number
+  tagNames: string[]
 }
 
 const SORTS: { value: SortKey; label: string }[] = [
@@ -24,6 +25,7 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: 'alpha', label: 'по алфавиту' },
   { value: 'cheap', label: 'сначала дешёвые' },
   { value: 'pricey', label: 'сначала дорогие' },
+  { value: 'near', label: 'ближе' },
 ]
 
 const VIEWS: { value: ViewKey; label: string }[] = [
@@ -53,6 +55,7 @@ export function FilterSheet({
   people,
   meId,
   resultCount,
+  tagNames,
 }: Props) {
   const prices: PriceLevel[] = ['free', 'low', 'medium', 'high']
 
@@ -131,6 +134,19 @@ export function FilterSheet({
           </Chip>
         ))}
       </Group>
+
+      {tagNames.length > 0 ? (
+        <Group title="метки">
+          <Chip size="sm" active={filters.tag === 'all'} onClick={() => setFilter('tag', 'all')}>
+            все
+          </Chip>
+          {tagNames.map((name) => (
+            <Chip key={name} size="sm" active={filters.tag === name} onClick={() => setFilter('tag', name)}>
+              {name}
+            </Chip>
+          ))}
+        </Group>
+      ) : null}
 
       <Group title="сортировка">
         {SORTS.map((option) => (

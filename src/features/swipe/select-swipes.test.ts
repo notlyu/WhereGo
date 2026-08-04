@@ -28,6 +28,7 @@ function place(id: string, patch: Partial<Place> = {}): Place {
     author: null,
     rating: null,
     coverUrl: null,
+    tags: [],
     ...patch,
   }
 }

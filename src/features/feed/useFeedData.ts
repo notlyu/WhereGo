@@ -6,7 +6,7 @@ import { useFilters } from '@/hooks/useFilters'
 import { useGeolocation, type Coords } from '@/hooks/useGeolocation'
 import type { Category, Place, Profile } from '@/types/models'
 
-import { groupByCategory, selectIdeas, selectPlaces, type Section } from './select-places'
+import { collectTags, groupByCategory, selectIdeas, selectPlaces, type Section } from './select-places'
 
 export interface FeedData {
   meId: string | null
@@ -15,6 +15,8 @@ export interface FeedData {
   here: Coords | null
   /** Все места, прошедшие фильтры (идеи исключены). */
   list: Place[]
+  /** М-11: метки, которые встречаются в местах, — для шторки фильтров. */
+  tagNames: string[]
   /** Полки по категориям — вид по умолчанию на телефоне. */
   sections: Section[]
   ideas: Place[]
@@ -47,7 +49,8 @@ export function useFeedData(): FeedData {
   const categoriesQuery = useCategories()
 
   const all = useMemo(() => placesQuery.data ?? [], [placesQuery.data])
-  const list = useMemo(() => selectPlaces(all, filters, meId), [all, filters, meId])
+  const list = useMemo(() => selectPlaces(all, filters, meId, here), [all, filters, meId, here])
+  const tagNames = useMemo(() => collectTags(all), [all])
   const ideas = useMemo(() => selectIdeas(all), [all])
   const sections = useMemo(() => groupByCategory(list), [list])
 
@@ -66,6 +69,7 @@ export function useFeedData(): FeedData {
     me: profile,
     here,
     list,
+    tagNames,
     sections,
     ideas,
     totalCount: all.filter((place) => !place.isIdea).length,

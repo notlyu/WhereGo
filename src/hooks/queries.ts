@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '@/hooks/auth-context'
 
-import { categories as categoriesApi, photos as photosApi, places as placesApi, plans as plansApi, reviews as reviewsApi, votes as votesApi } from '@/api'
+import { categories as categoriesApi, photos as photosApi, places as placesApi, plans as plansApi, reviews as reviewsApi, tags as tagsApi, votes as votesApi } from '@/api'
 import type { Place, PlaceInput, PlaceStatus, PlanInput, ReviewInput, Vote } from '@/types/models'
 
 export const queryKeys = {
@@ -14,6 +14,7 @@ export const queryKeys = {
   storageUsage: ['storage-usage'] as const,
   votes: ['votes'] as const,
   plans: ['plans'] as const,
+  tags: ['tags'] as const,
 }
 
 export function usePlaces() {
@@ -283,5 +284,25 @@ export function useDeletePlan() {
   return useMutation({
     mutationFn: (id: string) => plansApi.remove(id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.plans }),
+  })
+}
+
+export function useTags() {
+  return useQuery({
+    queryKey: queryKeys.tags,
+    queryFn: () => tagsApi.list(),
+    staleTime: 30 * 60 * 1000,
+  })
+}
+
+export function useSetPlaceTags() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ placeId, names }: { placeId: string; names: string[] }) => tagsApi.setForPlace(placeId, names),
+    onSuccess: (_data, { placeId }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tags })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.places })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) })
+    },
   })
 }

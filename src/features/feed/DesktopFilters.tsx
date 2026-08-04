@@ -10,6 +10,7 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: 'alpha', label: 'по алфавиту' },
   { value: 'cheap', label: 'дешевле' },
   { value: 'pricey', label: 'дороже' },
+  { value: 'near', label: 'ближе' },
 ]
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
   categories: Category[]
   people: Profile[]
   meId: string | null
+  tagNames: string[]
 }
 
 /**
@@ -27,7 +29,7 @@ interface Props {
  * шторка: на широком экране шторка снизу выглядит как чужеродный мобильный
  * приём, и в макете её нет.
  */
-export function DesktopFilters({ filters, setFilter, reset, activeCount, categories, people, meId }: Props) {
+export function DesktopFilters({ filters, setFilter, reset, activeCount, categories, people, meId, tagNames }: Props) {
   return (
     <div className="animate-pop mt-[22px] flex flex-wrap items-center gap-[18px] rounded-[20px] bg-surface-1 px-5 py-4">
       <Group title="категория">
@@ -84,6 +86,22 @@ export function DesktopFilters({ filters, setFilter, reset, activeCount, categor
           </Chip>
         ))}
       </Group>
+
+      {tagNames.length > 0 ? (
+        <>
+          <Divider />
+          <Group title="метки">
+            <Chip size="sm" tone="contrast" active={filters.tag === 'all'} onClick={() => setFilter('tag', 'all')}>
+              все
+            </Chip>
+            {tagNames.map((name) => (
+              <Chip key={name} size="sm" tone="contrast" active={filters.tag === name} onClick={() => setFilter('tag', name)}>
+                {name}
+              </Chip>
+            ))}
+          </Group>
+        </>
+      ) : null}
 
       <Divider />
 

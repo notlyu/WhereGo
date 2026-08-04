@@ -44,6 +44,14 @@ export interface Place {
   rating: number | null
   /** Первое фото места; null — показываем штриховку (Этап 2). */
   coverUrl: string | null
+  /** М-11: метки места. */
+  tags: Tag[]
+}
+
+/** М-11: произвольная метка. Справочник общий, привязка — в `place_tags`. */
+export interface Tag {
+  id: string
+  name: string
 }
 
 /** План похода (В-3, В-4): место, дата, время и записка. */

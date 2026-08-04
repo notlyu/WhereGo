@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Filters } from '@/hooks/useFilters'
 import type { Category, Place, PlaceStatus, PriceLevel } from '@/types/models'
 
-import { groupByCategory, selectIdeas, selectPlaces } from './select-places'
+import { collectTags, groupByCategory, selectIdeas, selectPlaces } from './select-places'
 
 const CAFE: Category = { id: 'c-cafe', name: 'Кафе', emoji: '☕', sortOrder: 10 }
 const BAR: Category = { id: 'c-bar', name: 'Бар', emoji: '🍸', sortOrder: 30 }
@@ -14,6 +14,7 @@ const BASE_FILTERS: Filters = {
   status: 'all',
   price: 'all',
   want: 'all',
+  tag: 'all',
   sort: 'new',
   view: 'rails',
 }
@@ -38,6 +39,7 @@ function place(patch: Partial<Place> & { id: string }): Place {
     author: { id: 'u-ly', displayName: 'Ly', avatarUrl: null },
     rating: null,
     coverUrl: null,
+    tags: [],
     ...patch,
   }
 }
@@ -105,5 +107,45 @@ describe('groupByCategory', () => {
 describe('selectIdeas', () => {
   it('отдаёт только идеи', () => {
     expect(selectIdeas(FIXTURE).map((p) => p.id)).toEqual(['4'])
+  })
+})
+
+describe('метки (М-11)', () => {
+  const ЗАКАТ = { id: 't1', name: 'закат' }
+  const ДЁШЕВО = { id: 't2', name: 'дёшево' }
+  const tagged = [
+    place({ id: '1', tags: [ЗАКАТ, ДЁШЕВО] }),
+    place({ id: '2', tags: [ЗАКАТ] }),
+    place({ id: '3', tags: [] }),
+  ]
+
+  it('фильтрует по названию метки', () => {
+    expect(selectPlaces(tagged, { ...BASE_FILTERS, tag: 'закат' }, 'u-ly').map((p) => p.id)).toEqual(['1', '2'])
+    expect(selectPlaces(tagged, { ...BASE_FILTERS, tag: 'дёшево' }, 'u-ly').map((p) => p.id)).toEqual(['1'])
+  })
+
+  it('несуществующая метка даёт пусто, а не всё подряд', () => {
+    expect(selectPlaces(tagged, { ...BASE_FILTERS, tag: 'зима' }, 'u-ly')).toEqual([])
+  })
+
+  it('собирает метки без повторов и по алфавиту', () => {
+    expect(collectTags(tagged)).toEqual(['дёшево', 'закат'])
+  })
+})
+
+describe('сортировка по расстоянию (Л-7)', () => {
+  const HERE = { lat: 59.9386, lng: 30.3141 }
+  const near = place({ id: 'near', lat: 59.94, lng: 30.32 })
+  const far = place({ id: 'far', lat: 60.15, lng: 30.51 })
+  const nowhere = place({ id: 'nowhere', lat: null, lng: null })
+
+  it('ближние впереди, места без координат — в конце', () => {
+    const result = selectPlaces([far, nowhere, near], { ...BASE_FILTERS, sort: 'near' }, 'u-ly', HERE)
+    expect(result.map((p) => p.id)).toEqual(['near', 'far', 'nowhere'])
+  })
+
+  it('без геопозиции порядок не трогается', () => {
+    const result = selectPlaces([far, near], { ...BASE_FILTERS, sort: 'near' }, 'u-ly', null)
+    expect(result.map((p) => p.id)).toEqual(['far', 'near'])
   })
 })

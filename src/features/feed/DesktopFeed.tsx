@@ -5,6 +5,8 @@ import { PlaceCard } from '@/components/place/PlaceCard'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/lib/cn'
 
+import { usePagedList } from '@/hooks/usePagedList'
+
 import { DesktopFilters } from './DesktopFilters'
 import type { FeedData } from './useFeedData'
 
@@ -16,6 +18,8 @@ import type { FeedData } from './useFeedData'
 export function DesktopFeed(data: FeedData) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const { list, totalCount, activeCount } = data
+  // Л-9: показываем по 20, дальше по кнопке.
+  const paged = usePagedList(list)
 
   return (
     <div>
@@ -41,7 +45,7 @@ export function DesktopFeed(data: FeedData) {
         </div>
       </header>
 
-      {filtersOpen ? <DesktopFilters {...data} /> : null}
+      {filtersOpen ? <DesktopFilters {...data} tagNames={data.tagNames} /> : null}
 
       {data.isPending ? (
         <div className="mt-[26px] grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
@@ -85,10 +89,20 @@ export function DesktopFeed(data: FeedData) {
       ) : null}
 
       <div className="mt-[26px] grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
-        {list.map((place) => (
-          <PlaceCard key={place.id} place={place} meId={data.meId} layout="grid" />
+        {paged.page.map((place) => (
+          <PlaceCard key={place.id} place={place} meId={data.meId} here={data.here} layout="grid" />
         ))}
       </div>
+
+      {paged.hasMore ? (
+        <button
+          type="button"
+          onClick={paged.showMore}
+          className="mt-6 h-12 w-full cursor-pointer rounded-pill bg-surface-d text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
+        >
+          Показать ещё · осталось {paged.rest}
+        </button>
+      ) : null}
     </div>
   )
 }

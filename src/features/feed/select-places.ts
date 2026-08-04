@@ -1,6 +1,8 @@
 import type { Filters } from '@/hooks/useFilters'
 import type { Place } from '@/types/models'
 
+import { haversine } from '@/lib/geo'
+
 const PRICE_ORDER = { free: 0, low: 1, medium: 2, high: 3 } as const
 
 function matchesQuery(place: Place, query: string): boolean {
@@ -17,13 +19,22 @@ function matchesQuery(place: Place, query: string): boolean {
  * Отдельная чистая функция, а не тело компонента: её видно целиком, она
  * покрывается тестом без рендера и переиспользуется картой (К-6, Этап 3).
  */
-export function selectPlaces(places: Place[], filters: Filters, meId: string | null): Place[] {
+export function selectPlaces(
+  places: Place[],
+  filters: Filters,
+  meId: string | null,
+  /** Л-7: нужна только для сортировки по расстоянию. */
+  here: { lat: number; lng: number } | null = null,
+): Place[] {
   const result = places.filter((place) => {
     if (place.isIdea) return false
     if (!matchesQuery(place, filters.q)) return false
     if (filters.category !== 'all' && place.categoryId !== filters.category) return false
     if (filters.status !== 'all' && place.status !== filters.status) return false
     if (filters.price !== 'all' && place.price !== filters.price) return false
+    // М-11: метка совпадает по названию, а не по id — так ссылка с фильтром
+    // остаётся читаемой и переживает пересоздание тега.
+    if (filters.tag !== 'all' && !place.tags.some((tag) => tag.name === filters.tag)) return false
 
     if (filters.want !== 'all') {
       // До Этапа 4 голосов нет: «кто хочет» = автор места со статусом want.
@@ -42,6 +53,8 @@ export function selectPlaces(places: Place[], filters: Filters, meId: string | n
     alpha: (a, b) => a.title.localeCompare(b.title, 'ru'),
     cheap: (a, b) => (a.price ? PRICE_ORDER[a.price] : 9) - (b.price ? PRICE_ORDER[b.price] : 9),
     pricey: (a, b) => (b.price ? PRICE_ORDER[b.price] : -1) - (a.price ? PRICE_ORDER[a.price] : -1),
+    // Л-7: без разрешённой геопозиции сортировать не по чему — оставляем как есть.
+    near: here ? (a, b) => distance(a, here) - distance(b, here) : null,
   }
 
   const sorter = sorters[filters.sort]
@@ -73,4 +86,17 @@ export function groupByCategory(places: Place[]): Section[] {
 
 export function selectIdeas(places: Place[]): Place[] {
   return places.filter((place) => place.isIdea)
+}
+
+/** Места без координат уходят в конец, а не притворяются ближайшими. */
+function distance(place: Place, here: { lat: number; lng: number }): number {
+  if (place.lat === null || place.lng === null) return Number.POSITIVE_INFINITY
+  return haversine(here.lat, here.lng, place.lat, place.lng)
+}
+
+/** М-11: метки, которые реально встречаются, — для шторки фильтров. */
+export function collectTags(places: Place[]): string[] {
+  return [...new Set(places.flatMap((place) => place.tags.map((tag) => tag.name)))].sort((a, b) =>
+    a.localeCompare(b, 'ru'),
+  )
 }

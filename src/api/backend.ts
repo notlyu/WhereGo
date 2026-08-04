@@ -1,4 +1,4 @@
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Vote } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Tag, Vote } from '@/types/models'
 
 /**
  * Контракт бэкенда.
@@ -48,6 +48,17 @@ export interface Backend {
     save(placeId: string, input: ReviewInput): Promise<Review>
     /** О-4: удалить можно только свой — держит RLS. */
     remove(id: string): Promise<void>
+  }
+
+  tags: {
+    list(): Promise<Tag[]>
+    /**
+     * М-11: заменяет набор меток места целиком.
+     *
+     * Новые названия заводятся сами: справочник общий и пополняется по ходу,
+     * отдельного экрана управления метками в ТЗ нет.
+     */
+    setForPlace(placeId: string, names: string[]): Promise<Tag[]>
   }
 
   plans: {

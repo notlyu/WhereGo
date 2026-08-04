@@ -1,5 +1,5 @@
 import type { Database } from '@/types/database'
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Tag } from '@/types/models'
 
 import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { supabase } from './client'
@@ -24,6 +24,7 @@ type PlaceRowJoined = PlaceRow & {
   author: ProfileRow | null
   reviews: { rating: number }[] | null
   photos: { url: string; sort_order: number }[] | null
+  place_tags: { tags: { id: string; name: string } | null }[] | null
 }
 
 // Один запрос вместо четырёх: PostgREST разворачивает связи по внешним ключам.
@@ -44,7 +45,8 @@ const PLACE_SELECT = `
   category:categories!places_category_id_fkey(*),
   author:profiles!places_author_id_fkey(*),
   reviews!reviews_place_id_fkey(rating),
-  photos!photos_place_id_fkey(url, sort_order)
+  photos!photos_place_id_fkey(url, sort_order),
+  place_tags!place_tags_place_id_fkey(tags!place_tags_tag_id_fkey(id, name))
 `
 
 function toProfile(row: ProfileRow): Profile {
@@ -79,6 +81,7 @@ function toPlace(row: PlaceRowJoined): Place {
     author: row.author ? toProfile(row.author) : null,
     rating: ratings.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : null,
     coverUrl: photos[0]?.url ?? null,
+    tags: (row.place_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : [])),
   }
 }
 
@@ -334,6 +337,44 @@ export const supabaseBackend: Backend = {
     async remove(id) {
       const { error } = await supabase.from('reviews').delete().eq('id', id)
       if (error) throw new ApiError(error.message)
+    },
+  },
+
+  tags: {
+    async list() {
+      const { data, error } = await supabase.from('tags').select('id, name').order('name')
+      if (error) throw new ApiError(error.message)
+      return data as Tag[]
+    },
+
+    async setForPlace(placeId, names) {
+      const clean = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+
+      // Справочник общий и пополняется по ходу: незнакомое название заводится
+      // само. `ignoreDuplicates` — чтобы гонка двух человек не роняла запрос.
+      if (clean.length > 0) {
+        const { error } = await supabase
+          .from('tags')
+          .upsert(clean.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true } as never)
+        if (error) throw new ApiError(error.message)
+      }
+
+      const { data: rows, error: findError } = await supabase.from('tags').select('id, name').in('name', clean.length ? clean : [''])
+      if (findError) throw new ApiError(findError.message)
+
+      // Набор заменяется целиком: так проще, чем считать разницу, и не оставляет
+      // висящих связей, если правку делали с двух устройств сразу.
+      const { error: clearError } = await supabase.from('place_tags').delete().eq('place_id', placeId)
+      if (clearError) throw new ApiError(clearError.message)
+
+      if (rows.length > 0) {
+        const { error: linkError } = await supabase
+          .from('place_tags')
+          .insert(rows.map((tag) => ({ place_id: placeId, tag_id: tag.id })))
+        if (linkError) throw new ApiError(linkError.message)
+      }
+
+      return rows as Tag[]
     },
   },
 

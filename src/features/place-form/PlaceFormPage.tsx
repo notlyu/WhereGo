@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 
@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
 import { FieldError, Input, Label, Textarea } from '@/components/ui/Field'
 import { Segmented } from '@/components/ui/Segmented'
-import { useCreatePlace, usePlace, useUpdatePlace } from '@/hooks/queries'
+import { useAuth } from '@/hooks/auth-context'
+import { useCreatePlace, usePlace, useSetPlaceTags, useTags, useUpdatePlace } from '@/hooks/queries'
 import { useDraft } from '@/hooks/useDraft'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
@@ -16,7 +17,10 @@ import { PRICE_LABEL, type PriceLevel } from '@/types/models'
 
 import { AddressField } from './AddressField'
 import { CategoryPicker } from './CategoryPicker'
+import { TagsField } from './TagsField'
 import { EMPTY_PLACE, placeSchema, toInput, type PlaceFormValues } from './schema'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Link } from 'react-router'
 
 const PRICES: PriceLevel[] = ['free', 'low', 'medium', 'high']
 
@@ -26,10 +30,14 @@ export function PlaceFormPage() {
   const navigate = useNavigate()
   const isDesktop = useIsDesktop()
   const isEdit = Boolean(id)
+  const { profile } = useAuth()
 
   const { data: place, isPending: loadingPlace } = usePlace(id)
   const create = useCreatePlace()
   const update = useUpdatePlace(id ?? '')
+  const setTags = useSetPlaceTags()
+  const { data: knownTags = [] } = useTags()
+  const [tagNames, setTagNames] = useState<string[]>([])
 
   const form = useForm<PlaceFormValues>({
     resolver: zodResolver(placeSchema),
@@ -54,6 +62,7 @@ export function PlaceFormPage() {
       price: place.price,
       isIdea: place.isIdea,
     })
+    setTagNames(place.tags.map((tag) => tag.name))
   }, [isEdit, place, form])
 
   const busy = create.isPending || update.isPending
@@ -61,17 +70,40 @@ export function PlaceFormPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     const input = toInput(values)
+    // Метки живут в отдельной таблице — сохраняются вторым запросом.
+    // Сбой на них не должен терять само место, поэтому место идёт первым.
     if (isEdit && id) {
       await update.mutateAsync(input)
+      await setTags.mutateAsync({ placeId: id, names: tagNames }).catch(() => undefined)
       void navigate(`/place/${id}`)
     } else {
       const created = await create.mutateAsync(input)
+      await setTags.mutateAsync({ placeId: created.id, names: tagNames }).catch(() => undefined)
       void navigate(`/place/${created.id}`, { replace: true })
     }
   })
 
   if (isEdit && loadingPlace) {
     return <div className="mx-5 mt-6 h-[60vh] animate-pulse rounded-card bg-surface-2 desktop:mx-0" />
+  }
+
+  // М-3: правит только автор. Раньше форма открывалась для любого места, и
+  // отказ приходил только при сохранении — после того, как человек всё заполнил.
+  // Настоящая защита всё равно на RLS (Б-3), это про уважение ко времени.
+  if (isEdit && place && place.authorId !== profile?.id) {
+    return (
+      <div className="px-5 pt-8 desktop:px-0 desktop:max-w-[640px]">
+        <EmptyState
+          title="Это не наше место"
+          hint={`«${place.title}» добавил${place.author ? ` ${place.author.displayName}` : ''} — править может только тот, кто добавил. Статус и фото менять можно всем.`}
+          action={
+            <Link to={`/place/${place.id}`} className="text-sm font-semibold text-accent">
+              Открыть место
+            </Link>
+          }
+        />
+      </div>
+    )
   }
 
   const title = isEdit ? 'Правим место' : 'Новое место'
@@ -153,6 +185,15 @@ export function PlaceFormPage() {
             )}
           />
         </div>
+      </Section>
+
+      <Section>
+        <TagsField
+          value={tagNames}
+          onChange={setTagNames}
+          known={knownTags.map((tag) => tag.name)}
+          desktop={isDesktop}
+        />
       </Section>
 
       <Section>

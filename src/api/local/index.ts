@@ -1,4 +1,4 @@
-import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Vote } from '@/types/models'
+import type { Category, Photo, Place, PlaceInput, PlaceStatus, Plan, PlanInput, Profile, Review, ReviewInput, Tag, Vote } from '@/types/models'
 
 import { ApiError, type Backend, type PhotoTarget } from '../backend'
 import { LOCAL_PASSWORD, SEED_CATEGORIES, SEED_IDEAS, SEED_PLACES, SEED_PROFILES, SEED_REVIEWS } from './seed'
@@ -21,6 +21,8 @@ interface Store {
   photos: Photo[]
   votes: Vote[]
   plans: Plan[]
+  tags: Tag[]
+  placeTags: { placeId: string; tagId: string }[]
 }
 
 function nowMinusDays(days: number): string {
@@ -51,6 +53,7 @@ function seedStore(): Store {
     author: profiles.get(p.authorId) ?? null,
     rating: p.rating,
     coverUrl: null,
+    tags: [],
   }))
 
   const ideas: Place[] = SEED_IDEAS.map((i) => ({
@@ -73,6 +76,7 @@ function seedStore(): Store {
     author: profiles.get(i.authorId) ?? null,
     rating: null,
     coverUrl: null,
+    tags: [],
   }))
 
   const reviews: Review[] = SEED_REVIEWS.map((r) => ({
@@ -86,7 +90,7 @@ function seedStore(): Store {
     author: profiles.get(r.authorId) ?? null,
   }))
 
-  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [], votes: [], plans: [] }
+  return { categories: [...SEED_CATEGORIES], places: [...places, ...ideas], reviews, photos: [], votes: [], plans: [], tags: [], placeTags: [] }
 }
 
 function read(): Store {
@@ -146,6 +150,9 @@ function hydrate(place: Place, store: Store): Place {
     author: seedProfile ? { id: seedProfile.id, displayName: seedProfile.displayName, avatarUrl: seedProfile.avatarUrl } : null,
     rating: ratings.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : null,
     coverUrl: cover?.url ?? null,
+    tags: (store.placeTags ?? [])
+      .filter((link) => link.placeId === place.id)
+      .flatMap((link) => (store.tags ?? []).filter((tag) => tag.id === link.tagId)),
   }
 }
 
@@ -267,6 +274,7 @@ export const localBackend: Backend = {
         author: me,
         rating: null,
         coverUrl: null,
+        tags: [],
       }
       store.places.push(place)
       write(store)
@@ -347,6 +355,35 @@ export const localBackend: Backend = {
       if (review.authorId !== me.id) throw new ApiError('Удалить можно только свой отзыв.')
       store.reviews = store.reviews.filter((r) => r.id !== id)
       write(store)
+    },
+  },
+
+  tags: {
+    async list() {
+      return (read().tags ?? []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+    },
+
+    async setForPlace(placeId, names) {
+      requireSession()
+      const store = read()
+      store.tags = store.tags ?? []
+      store.placeTags = store.placeTags ?? []
+
+      const clean = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+      const resolved = clean.map((name) => {
+        const existing = store.tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase())
+        if (existing) return existing
+        const created: Tag = { id: crypto.randomUUID(), name }
+        store.tags.push(created)
+        return created
+      })
+
+      store.placeTags = store.placeTags
+        .filter((link) => link.placeId !== placeId)
+        .concat(resolved.map((tag) => ({ placeId, tagId: tag.id })))
+
+      write(store)
+      return resolved
     },
   },
 

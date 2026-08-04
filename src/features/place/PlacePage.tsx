@@ -208,6 +208,24 @@ function PlaceInfo({ place, mine, desktop, onStatus, onEdit, onDelete, deleting,
         </p>
       ) : null}
 
+      {/* М-11: метки ведут в ленту, отфильтрованную по себе. */}
+      {place.tags.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {place.tags.map((tag) => (
+            <Link
+              key={tag.id}
+              to={`/?tag=${encodeURIComponent(tag.name)}`}
+              className={cn(
+                'rounded-pill px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                desktop ? 'bg-surface-3 text-fg-muted hover:text-fg' : 'bg-surface-4 text-fg-muted hover:text-fg',
+              )}
+            >
+              {tag.name}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
       {place.sourceUrl ? (
         <a
           href={place.sourceUrl}

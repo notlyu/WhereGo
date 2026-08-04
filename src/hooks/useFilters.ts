@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router'
 
 import type { PlaceStatus, PriceLevel } from '@/types/models'
 
-export type SortKey = 'new' | 'rating' | 'alpha' | 'cheap' | 'pricey'
+export type SortKey = 'new' | 'rating' | 'alpha' | 'cheap' | 'pricey' | 'near'
 export type ViewKey = 'rails' | 'cards' | 'compact'
 /** Кто хочет: любой · оба · конкретный автор (id профиля). */
 export type WantKey = 'all' | 'both' | string
@@ -14,6 +14,8 @@ export interface Filters {
   status: PlaceStatus | 'all'
   price: PriceLevel | 'all'
   want: WantKey
+  /** М-11: одна метка за раз — большего для двух человек не нужно. */
+  tag: string | 'all'
   sort: SortKey
   view: ViewKey
 }
@@ -24,6 +26,7 @@ const DEFAULTS: Filters = {
   status: 'all',
   price: 'all',
   want: 'all',
+  tag: 'all',
   sort: 'new',
   view: 'rails',
 }
@@ -43,6 +46,7 @@ export function useFilters() {
       status: (params.get('status') as Filters['status']) ?? DEFAULTS.status,
       price: (params.get('price') as Filters['price']) ?? DEFAULTS.price,
       want: params.get('want') ?? DEFAULTS.want,
+      tag: params.get('tag') ?? DEFAULTS.tag,
       sort: (params.get('sort') as SortKey) ?? DEFAULTS.sort,
       view: (params.get('view') as ViewKey) ?? DEFAULTS.view,
     }),
@@ -51,7 +55,7 @@ export function useFilters() {
 
   const setFilter = useCallback(
     <K extends keyof Filters>(key: K, value: Filters[K]) => {
-      const shortKey = { q: 'q', category: 'cat', status: 'status', price: 'price', want: 'want', sort: 'sort', view: 'view' }[key]
+      const shortKey = { q: 'q', category: 'cat', status: 'status', price: 'price', want: 'want', tag: 'tag', sort: 'sort', view: 'view' }[key]
       setParams(
         (prev) => {
           const next = new URLSearchParams(prev)
@@ -70,7 +74,7 @@ export function useFilters() {
       (prev) => {
         const next = new URLSearchParams(prev)
         // Вид — не фильтр, «сбросить» его не трогает.
-        ;['q', 'cat', 'status', 'price', 'want', 'sort'].forEach((key) => next.delete(key))
+        ;['q', 'cat', 'status', 'price', 'want', 'tag', 'sort'].forEach((key) => next.delete(key))
         return next
       },
       { replace: true },
@@ -84,6 +88,7 @@ export function useFilters() {
     if (filters.status !== 'all') count += 1
     if (filters.price !== 'all') count += 1
     if (filters.want !== 'all') count += 1
+    if (filters.tag !== 'all') count += 1
     if (filters.sort !== 'new') count += 1
     return count
   }, [filters])
