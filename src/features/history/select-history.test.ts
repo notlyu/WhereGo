@@ -111,20 +111,89 @@ describe('selectYear', () => {
     expect(stats.byCategory[1].share).toBe(0.5)
   })
 
-  it('средняя оценка за год', () => {
-    expect(selectYear(visits, 2026).averageRating).toBeCloseTo(4, 5)
+  it('любимая категория — первая из полос', () => {
+    expect(selectYear(visits, 2026).topCategory).toEqual({ label: 'Бар', count: 2 })
   })
 
-  it('лучшее место — с наибольшей оценкой', () => {
-    expect(selectYear(visits, 2026).best?.id).toBe('a')
+  it('лучшая оценка — место с наибольшей средней', () => {
+    expect(selectYear(visits, 2026).bestRated?.place.id).toBe('a')
   })
 
   it('пустой год не ломается и не делит на ноль', () => {
     const stats = selectYear(visits, 2020)
     expect(stats.visits).toBe(0)
-    expect(stats.averageRating).toBeNull()
     expect(stats.byCategory).toEqual([])
-    expect(stats.best).toBeNull()
+    expect(stats.topCategory).toBeNull()
+    expect(stats.bestRated).toBeNull()
+    expect(stats.priciest).toBeNull()
+    expect(stats.topAuthor).toBeNull()
+  })
+})
+
+describe('selectYear · самый дорогой', () => {
+  it('берёт место с самой высокой меткой цены', () => {
+    const visits = selectVisits(
+      [place('a', { price: 'low' }), place('b', { price: 'high' }), place('c', { price: 'medium' })],
+      [review('r1', 'a', 5, '2026-01-01'), review('r2', 'b', 4, '2026-01-02'), review('r3', 'c', 4, '2026-01-03')],
+    )
+    expect(selectYear(visits, 2026).priciest?.place.id).toBe('b')
+  })
+
+  it('места без цены не мешают — «бесплатно» тоже цена', () => {
+    const visits = selectVisits(
+      [place('a', { price: null }), place('b', { price: 'free' })],
+      [review('r1', 'a', 5, '2026-01-01'), review('r2', 'b', 5, '2026-01-02')],
+    )
+    expect(selectYear(visits, 2026).priciest?.place.id).toBe('b')
+  })
+
+  it('цен нет вовсе — прочерк, а не выдуманное место', () => {
+    const visits = selectVisits([place('a', { price: null })], [review('r1', 'a', 5, '2026-01-01')])
+    expect(selectYear(visits, 2026).priciest).toBeNull()
+  })
+})
+
+describe('selectYear · единогласие', () => {
+  it('пять и четыре с половиной — не спор', () => {
+    const visits = selectVisits([place('a')], [review('r1', 'a', 5, '2026-01-01'), review('r2', 'a', 4.5, '2026-01-01')])
+    const best = selectYear(visits, 2026).bestRated
+    expect(best?.ratings).toEqual([5, 4.5])
+    expect(best?.unanimous).toBe(true)
+  })
+
+  it('пять против трёх — разошлись', () => {
+    const visits = selectVisits([place('a')], [review('r1', 'a', 5, '2026-01-01'), review('r2', 'a', 3, '2026-01-01')])
+    expect(selectYear(visits, 2026).bestRated?.unanimous).toBe(false)
+  })
+
+  it('один отзыв единогласием не считается', () => {
+    const visits = selectVisits([place('a')], [review('r1', 'a', 5, '2026-01-01')])
+    expect(selectYear(visits, 2026).bestRated?.unanimous).toBe(false)
+  })
+})
+
+describe('selectYear · добавляет чаще', () => {
+  const АЛИНА = { id: 'u-alina', displayName: 'Алина', avatarUrl: null }
+  const СТАС = { id: 'u-stas', displayName: 'Стас', avatarUrl: null }
+
+  const added = [
+    place('a', { authorId: СТАС.id, author: СТАС, createdAt: '2026-01-01T00:00:00Z' }),
+    place('b', { authorId: СТАС.id, author: СТАС, createdAt: '2026-02-01T00:00:00Z' }),
+    place('c', { authorId: АЛИНА.id, author: АЛИНА, createdAt: '2026-03-01T00:00:00Z' }),
+    place('d', { authorId: АЛИНА.id, author: АЛИНА, createdAt: '2025-03-01T00:00:00Z' }),
+  ]
+
+  it('считает по году заведения, а не по году похода', () => {
+    expect(selectYear([], 2026, added).topAuthor).toEqual({ name: 'Стас', count: 2, rivalCount: 1 })
+  })
+
+  it('идеи в счёт не идут', () => {
+    const withIdeas = [...added, place('e', { authorId: АЛИНА.id, author: АЛИНА, isIdea: true, createdAt: '2026-04-01T00:00:00Z' })]
+    expect(selectYear([], 2026, withIdeas).topAuthor?.name).toBe('Стас')
+  })
+
+  it('за год никто ничего не добавил — прочерк', () => {
+    expect(selectYear([], 2024, added).topAuthor).toBeNull()
   })
 })
 

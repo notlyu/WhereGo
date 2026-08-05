@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useAllReviews, usePlaces } from '@/hooks/queries'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
-import { formatRating } from '@/lib/format'
+import { PRICE_SHORT } from '@/types/models'
 
 import { selectVisits, selectYear, yearsWithVisits, type YearStats } from './select-history'
 
@@ -23,7 +23,9 @@ export function YearPage() {
   const [year, setYear] = useState<number | null>(null)
 
   const current = year ?? years[0] ?? new Date().getFullYear()
-  const stats = useMemo(() => selectYear(visits, current), [visits, current])
+  // `places` — для «добавляет чаще»: там считаются все заведённые за год
+  // места, а не только те, куда успели сходить.
+  const stats = useMemo(() => selectYear(visits, current, places), [visits, current, places])
 
   const running = current === new Date().getFullYear()
   const period = `${current}${running ? ', пока что' : ''}`
@@ -95,10 +97,10 @@ export function YearPage() {
             <div className="mt-[34px] max-w-[560px]">
               <div className="text-[11px] font-semibold tracking-[.1em] text-fg-dimmer uppercase">куда ходим чаще</div>
               <div className="mt-3.5 flex flex-col gap-3">
-                {stats.byCategory.map((bar) => (
+                {stats.byCategory.map((bar, index) => (
                   <div key={bar.label} className="flex items-center gap-3.5">
                     <div className="w-[88px] flex-none truncate text-[13px] text-fg-muted">{bar.label}</div>
-                    <Track share={bar.share} className="h-1.5 flex-1" />
+                    <Track share={bar.share} rank={index} className="h-1.5 flex-1" />
                     <div className="w-5 flex-none text-right text-[12.5px] text-fg-dimmer">{bar.count}</div>
                   </div>
                 ))}
@@ -163,7 +165,7 @@ export function YearPage() {
           <div className="mt-3 rounded-[20px] bg-surface-2 p-5">
             <div className="text-xs font-semibold tracking-[.1em] text-fg-muted uppercase">куда ходим чаще</div>
             <div className="mt-4 flex flex-col gap-3">
-              {stats.byCategory.map((bar) => (
+              {stats.byCategory.map((bar, index) => (
                 <div key={bar.label}>
                   {/* На телефоне подпись стоит над полосой, а не слева: колонка
                       в 88px съедала бы четверть ширины экрана. */}
@@ -171,7 +173,7 @@ export function YearPage() {
                     <div className="truncate">{bar.label}</div>
                     <div className="flex-none text-fg-dimmer">{bar.count}</div>
                   </div>
-                  <Track share={bar.share} className="mt-[7px] h-[7px]" />
+                  <Track share={bar.share} rank={index} className="mt-[7px] h-[7px]" />
                 </div>
               ))}
             </div>
@@ -186,43 +188,74 @@ export function YearPage() {
 const HERO_BG = '#0F3D33'
 const HERO_GLOW = 'radial-gradient(closest-side, rgb(78 229 96 / .32), rgb(78 229 96 / 0))'
 
-function Track({ share, className }: { share: number; className?: string }) {
+/**
+ * Цвета полос из макета: от акцентного зелёного к приглушённому фиолетовому.
+ * Не про смысл категории, а про место в списке — верхняя полоса самая яркая.
+ * Ниже четвёртой все одного цвета: дальше оттенки уже неразличимы.
+ */
+const BAR_COLORS = ['var(--color-accent)', '#2E7D5B', '#4A4E8C', '#6B5B8C']
+
+function Track({ share, rank, className }: { share: number; rank: number; className?: string }) {
   return (
     <div className={cn('overflow-hidden rounded-pill bg-surface-4', className)}>
       {/* Минимум 4% — иначе одиночный поход даёт полосу в один пиксель,
           неотличимую от пустой дорожки. */}
       <div
-        className="h-full rounded-pill bg-accent transition-[width] duration-500"
-        style={{ width: `${Math.max(share * 100, 4)}%` }}
+        className="h-full rounded-pill transition-[width] duration-500"
+        style={{
+          width: `${Math.max(share * 100, 4)}%`,
+          background: BAR_COLORS[Math.min(rank, BAR_COLORS.length - 1)],
+        }}
       />
     </div>
   )
 }
 
-/** Одни и те же четыре цифры на обеих раскладках — различается только подача. */
+/**
+ * Четыре показателя из макета — одни и те же на обеих раскладках,
+ * различается только подача.
+ *
+ * Прочерк вместо значения там, где считать не из чего: у места может не
+ * быть цены, за год может не быть ни одного отзыва. Придумывать в такой
+ * ситуации бодрую цифру нечестно.
+ */
 function statItems(stats: YearStats): { label: string; value: string; note: ReactNode }[] {
+  const { topCategory, priciest, bestRated, topAuthor } = stats
+
   return [
     {
-      label: 'разных мест',
-      value: String(stats.places),
-      note: stats.places < stats.visits ? 'куда-то возвращались' : 'каждое по разу',
+      label: 'любимая категория',
+      value: topCategory?.label ?? '—',
+      note: topCategory ? `${topCategory.count} из ${stats.visits} ${plural(stats.visits)}` : 'категорий пока нет',
     },
     {
-      label: 'отзывов',
-      value: String(stats.reviews),
-      note: stats.reviews >= stats.visits * 2 ? 'писали оба' : 'не про всё написали',
+      label: 'самый дорогой',
+      // Метка цены, а не сумма: рублей мы нигде не спрашиваем.
+      value: priciest ? PRICE_SHORT[priciest.price] : '—',
+      note: priciest?.place.title ?? 'цены не проставлены',
     },
     {
-      label: 'средняя оценка',
-      value: stats.averageRating !== null ? formatRating(stats.averageRating) : '—',
-      note: stats.averageRating !== null ? 'по нашим отзывам' : 'оценок пока нет',
+      label: 'лучшая оценка',
+      value: bestRated?.place.title ?? '—',
+      note: bestRated ? ratingsNote(bestRated.ratings, bestRated.unanimous) : 'оценок пока нет',
     },
     {
-      label: 'лучшее',
-      value: stats.best?.title ?? '—',
-      note: stats.best ? (stats.best.category?.name ?? 'без категории') : 'ещё не выбрали',
+      label: 'добавляет чаще',
+      value: topAuthor?.name ?? '—',
+      note: topAuthor
+        ? topAuthor.count === topAuthor.rivalCount
+          ? `поровну, по ${topAuthor.count}`
+          : `${topAuthor.count} мест против ${topAuthor.rivalCount}`
+        : 'мест за год не заводили',
     },
   ]
+}
+
+/** «5,0 и 4,5 — единогласно». Оценки без звёздочки: их тут две в строке. */
+function ratingsNote(ratings: number[], unanimous: boolean): string {
+  const numbers = ratings.map((value) => value.toFixed(1).replace('.', ',')).join(' и ')
+  if (ratings.length < 2) return `${numbers} — пока один отзыв`
+  return `${numbers} — ${unanimous ? 'единогласно' : 'разошлись'}`
 }
 
 function plural(n: number): string {
