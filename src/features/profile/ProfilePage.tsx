@@ -52,14 +52,31 @@ export function ProfilePage() {
   if (isDesktop) {
     return (
       <div className="max-w-[720px]">
-        <div className="text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">аккаунт</div>
-        <h1 className="mt-2 font-display text-[44px] leading-none font-medium tracking-[-.02em] text-fg">Профиль</h1>
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">аккаунт</div>
+            <h1 className="mt-2 font-display text-[44px] leading-none font-medium tracking-[-.02em] text-fg">Профиль</h1>
+          </div>
+
+          {/* На телефоне настройки открываются шестерёнкой в шапке профиля.
+              На десктопе такой кнопки не было вовсе — до имени, фото и смены
+              пароля можно было добраться только с телефона. */}
+          <Link
+            to="/settings"
+            className="flex h-11 flex-none items-center gap-2 rounded-pill bg-surface-d px-[18px] text-[13.5px] font-semibold text-fg transition-colors hover:bg-surface-2"
+          >
+            <Settings size={16} />
+            Настройки
+          </Link>
+        </div>
 
         <div className="mt-7 flex items-center gap-5">
           <Avatar name={profile?.displayName ?? '?'} url={profile?.avatarUrl} size={88} accent />
           <div className="flex flex-col gap-2">
             <div className="text-xl font-semibold text-fg">{profile?.displayName}</div>
-            <div className="text-[12.5px] text-fg-dim">Имя, фото и смена пароля — этап 5</div>
+            <Link to="/settings" className="text-[12.5px] font-semibold text-accent">
+              Изменить имя, фото или пароль →
+            </Link>
           </div>
         </div>
 
