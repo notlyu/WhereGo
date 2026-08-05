@@ -29,6 +29,7 @@ function place(id: string, patch: Partial<Place> = {}): Place {
     rating: null,
     coverUrl: null,
     tags: [],
+    openingHours: null,
     ...patch,
   }
 }

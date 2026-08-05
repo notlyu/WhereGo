@@ -15,10 +15,12 @@ interface Props {
   desktop?: boolean
   /** Компактный вид для карточки отзыва: без заголовка и пояснения. */
   compact?: boolean
+  /** Ф-7: открыть фото на весь экран. Без обработчика плитка не кликается. */
+  onOpen?: (photoId: string) => void
 }
 
 /** Ф-1…Ф-6, Ф-8: до десяти фото, перетаскиванием или выбором, со статусом на файл. */
-export function PhotoUploader({ placeId, target, desktop = false, compact = false }: Props) {
+export function PhotoUploader({ placeId, target, desktop = false, compact = false, onOpen }: Props) {
   const { profile } = useAuth()
   const { data: photos = [] } = usePhotos(placeId)
   const remove = useDeletePhoto(placeId)
@@ -70,6 +72,7 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
             photo={photo}
             canDelete={photo.uploadedBy === profile?.id}
             onDelete={() => remove.mutate(photo.id)}
+            onOpen={onOpen ? () => onOpen(photo.id) : undefined}
           />
         ))}
 
@@ -140,7 +143,17 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
   )
 }
 
-function PhotoTile({ photo, canDelete, onDelete }: { photo: Photo; canDelete: boolean; onDelete: () => void }) {
+function PhotoTile({
+  photo,
+  canDelete,
+  onDelete,
+  onOpen,
+}: {
+  photo: Photo
+  canDelete: boolean
+  onDelete: () => void
+  onOpen?: () => void
+}) {
   return (
     <div className="group relative aspect-square overflow-hidden rounded-card bg-surface-2">
       <img
@@ -149,7 +162,8 @@ function PhotoTile({ photo, canDelete, onDelete }: { photo: Photo; canDelete: bo
         loading="lazy"
         width={photo.width ?? undefined}
         height={photo.height ?? undefined}
-        className="h-full w-full object-cover"
+        onClick={onOpen}
+        className={cn('h-full w-full object-cover', onOpen && 'cursor-zoom-in')}
       />
       {canDelete ? (
         <button

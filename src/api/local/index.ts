@@ -54,6 +54,7 @@ function seedStore(): Store {
     rating: p.rating,
     coverUrl: null,
     tags: [],
+    openingHours: null,
   }))
 
   const ideas: Place[] = SEED_IDEAS.map((i) => ({
@@ -77,6 +78,7 @@ function seedStore(): Store {
     rating: null,
     coverUrl: null,
     tags: [],
+    openingHours: null,
   }))
 
   const reviews: Review[] = SEED_REVIEWS.map((r) => ({
@@ -169,6 +171,7 @@ function applyInput(place: Place, input: PlaceInput): Place {
     sourceTitle: input.sourceTitle,
     price: input.price,
     isIdea: input.isIdea,
+    openingHours: input.openingHours ?? place.openingHours,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -295,6 +298,7 @@ export const localBackend: Backend = {
         rating: null,
         coverUrl: null,
         tags: [],
+        openingHours: input.openingHours ?? null,
       }
       store.places.push(place)
       write(store)

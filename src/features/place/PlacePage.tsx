@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowUpRight, Compass, Pencil, Trash2 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { PlaceCover } from '@/components/place/PlaceCover'
@@ -13,9 +13,11 @@ import { useDeletePlace, usePlace, useSetPlaceStatus } from '@/hooks/queries'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
+import { isOpenNow, parseHours, todayLabel } from '@/lib/openingHours'
 import { PRICE_LABEL, type Place, type PlaceStatus, type Profile } from '@/types/models'
 
 import { PhotoUploader } from '@/components/photo/PhotoUploader'
+import { PhotoViewer } from '@/components/photo/PhotoViewer'
 import { usePhotos } from '@/hooks/queries'
 
 import { ReviewsSection } from './ReviewsSection'
@@ -29,6 +31,11 @@ export function PlacePage() {
   const setStatus = useSetPlaceStatus()
   const remove = useDeletePlace()
   const { data: photos = [] } = usePhotos(id)
+  const [viewerAt, setViewerAt] = useState<number | null>(null)
+
+  // Ф-7: смотрим фото места; фото отзывов остаются в своих карточках.
+  const placePhotos = photos.filter((photo) => photo.placeId !== null)
+  const openViewer = (photoId: string) => setViewerAt(Math.max(0, placePhotos.findIndex((p) => p.id === photoId)))
 
   if (isPending) {
     return <div className={cn('animate-pulse bg-surface-2', isDesktop ? 'h-[70vh] rounded-card' : 'h-[70vh]')} />
@@ -89,23 +96,30 @@ export function PlacePage() {
 
         <div className="mt-[22px] grid items-start gap-7 grid-cols-[repeat(auto-fit,minmax(380px,1fr))]">
           <div>
-            <PlaceCover place={place} height={420} className="rounded-3xl" label="фото пока нет" showStatus={false} />
-            {photos.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => placePhotos.length > 0 && setViewerAt(0)}
+              className={cn('block w-full', placePhotos.length > 0 && 'cursor-zoom-in')}
+            >
+              <PlaceCover place={place} height={420} className="rounded-3xl" label="фото пока нет" showStatus={false} />
+            </button>
+            {placePhotos.length > 1 ? (
               <div className="mt-3 grid grid-cols-3 gap-3">
-                {photos.slice(1, 7).map((photo) => (
+                {placePhotos.slice(1, 7).map((photo, position) => (
                   <img
                     key={photo.id}
                     src={photo.url}
                     alt=""
                     loading="lazy"
-                    className="h-[110px] w-full rounded-card object-cover"
+                    onClick={() => setViewerAt(position + 1)}
+                    className="h-[110px] w-full cursor-zoom-in rounded-card object-cover"
                   />
                 ))}
               </div>
             ) : null}
 
             <div className="mt-[34px]">
-              <PhotoUploader placeId={place.id} target={{ placeId: place.id }} desktop />
+              <PhotoUploader placeId={place.id} target={{ placeId: place.id }} desktop onOpen={openViewer} />
             </div>
 
             <div className="mt-[34px] text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">отзывы</div>
@@ -116,6 +130,8 @@ export function PlacePage() {
 
           <div className="sticky top-[34px]">{info}</div>
         </div>
+
+        <PhotoViewer photos={placePhotos} index={viewerAt} onClose={() => setViewerAt(null)} title={place.title} />
       </article>
     )
   }
@@ -124,7 +140,13 @@ export function PlacePage() {
   return (
     <article className="pb-11">
       <div className="relative">
-        <PlaceCover place={place} height={300} label="фото пока нет" />
+        <button
+          type="button"
+          onClick={() => placePhotos.length > 0 && setViewerAt(0)}
+          className={cn('block w-full', placePhotos.length > 0 && 'cursor-zoom-in')}
+        >
+          <PlaceCover place={place} height={300} label="фото пока нет" />
+        </button>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-linear-to-b from-transparent to-bg" />
         <button
           type="button"
@@ -140,7 +162,7 @@ export function PlacePage() {
         {info}
 
         <div className="my-6 h-px bg-[#262626]" />
-        <PhotoUploader placeId={place.id} target={{ placeId: place.id }} />
+        <PhotoUploader placeId={place.id} target={{ placeId: place.id }} onOpen={openViewer} />
 
         <div className="my-6 h-px bg-[#262626]" />
         <div className="eyebrow">что мы подумали</div>
@@ -148,6 +170,8 @@ export function PlacePage() {
           <ReviewsSection place={place} />
         </div>
       </div>
+
+      <PhotoViewer photos={placePhotos} index={viewerAt} onClose={() => setViewerAt(null)} title={place.title} />
     </article>
   )
 }
@@ -186,6 +210,22 @@ function PlaceInfo({ place, mine, desktop, onStatus, onEdit, onDelete, deleting,
 
       {place.address ? (
         <div className={cn('text-fg-muted', desktop ? 'mt-3 text-[14.5px]' : 'mt-2.5 text-sm')}>{place.address}</div>
+      ) : null}
+
+      {/* М-12: часы на сегодня. Без часов строки нет вовсе. */}
+      {todayLabel(parseHours(place.openingHours)) ? (
+        <div className={cn('flex items-center gap-2 text-[13px]', desktop ? 'mt-2' : 'mt-2')}>
+          <span
+            className={cn(
+              'h-[6px] w-[6px] rounded-full',
+              isOpenNow(parseHours(place.openingHours)) ? 'bg-accent' : 'bg-fg-faint',
+            )}
+          />
+          <span className={isOpenNow(parseHours(place.openingHours)) ? 'text-accent' : 'text-fg-dim'}>
+            {isOpenNow(parseHours(place.openingHours)) ? 'работает' : 'сейчас закрыто'}
+          </span>
+          <span className="text-fg-dim">· {todayLabel(parseHours(place.openingHours))}</span>
+        </div>
       ) : null}
 
       {place.status === 'want' ? (

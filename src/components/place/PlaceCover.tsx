@@ -1,4 +1,5 @@
 import { cn } from '@/lib/cn'
+import { isOpenNow, parseHours } from '@/lib/openingHours'
 import { PLACE_STATUS_LABEL, type Place } from '@/types/models'
 
 import { STATUS_BADGE } from './status'
@@ -31,6 +32,15 @@ export function PlaceCover({
       ) : (
         <div className="font-mono text-[11px] tracking-[.06em] text-fg-dimmer uppercase">{label}</div>
       )}
+
+      {/* М-12: бейдж «работает» — только когда часы указаны и место открыто.
+          Молчим, если часов нет: «закрыто» без данных было бы враньём. */}
+      {isOpenNow(parseHours(place.openingHours)) ? (
+        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-pill bg-bg/72 px-2.5 py-1.5 text-[11.5px] font-semibold text-fg backdrop-blur-md">
+          <span className="h-[5px] w-[5px] rounded-full bg-accent" />
+          работает
+        </div>
+      ) : null}
 
       {showStatus ? (
         <div

@@ -46,6 +46,8 @@ export interface Place {
   coverUrl: string | null
   /** М-11: метки места. */
   tags: Tag[]
+  /** М-12: часы работы. Формат — в `src/lib/openingHours.ts`. */
+  openingHours: unknown
 }
 
 /** М-11: произвольная метка. Справочник общий, привязка — в `place_tags`. */
@@ -127,6 +129,7 @@ export interface ReviewInput {
 /** Поля, которые пользователь заполняет в форме места. */
 export interface PlaceInput {
   title: string
+  openingHours?: unknown
   categoryId: string | null
   description: string | null
   address: string | null

@@ -81,6 +81,7 @@ function toPlace(row: PlaceRowJoined): Place {
     author: row.author ? toProfile(row.author) : null,
     rating: ratings.length ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length : null,
     coverUrl: photos[0]?.url ?? null,
+    openingHours: row.opening_hours,
     tags: (row.place_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : [])),
   }
 }
@@ -156,6 +157,7 @@ function toRow(input: PlaceInput) {
     source_title: input.sourceTitle,
     price: input.price,
     is_idea: input.isIdea,
+    ...(input.openingHours !== undefined ? { opening_hours: input.openingHours as never } : {}),
   }
 }
 
