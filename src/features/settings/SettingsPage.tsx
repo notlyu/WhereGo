@@ -1,12 +1,14 @@
-import { Download, Loader2 } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { Download, ImagePlus, Loader2 } from 'lucide-react'
+import { useRef, useState, type FormEvent } from 'react'
 
-import { backup as backupApi, isLocalBackend } from '@/api'
+import { auth as authApi, backup as backupApi, isLocalBackend } from '@/api'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { FieldError, Input, Label } from '@/components/ui/Field'
 import { useAuth } from '@/hooks/auth-context'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
+import { AVATAR_LIMITS, compressImage } from '@/lib/compressImage'
 
 /** Н-1…Н-3, А-6, А-7: резервная копия, имя, аватар, пароль. */
 export function SettingsPage() {
@@ -90,7 +92,6 @@ function BackupCard({ desktop }: { desktop: boolean }) {
 function ProfileCard({ desktop }: { desktop: boolean }) {
   const { profile, refresh } = useAuth()
   const [name, setName] = useState(profile?.displayName ?? '')
-  const [avatar, setAvatar] = useState(profile?.avatarUrl ?? '')
   const [state, setState] = useState<{ busy: boolean; error: string | null; saved: boolean }>({
     busy: false,
     error: null,
@@ -102,7 +103,7 @@ function ProfileCard({ desktop }: { desktop: boolean }) {
     if (!name.trim()) return
     setState({ busy: true, error: null, saved: false })
     try {
-      await refresh({ displayName: name.trim(), avatarUrl: avatar.trim() || null })
+      await refresh({ displayName: name.trim() })
       setState({ busy: false, error: null, saved: true })
     } catch (cause) {
       setState({ busy: false, error: cause instanceof Error ? cause.message : 'Не сохранилось', saved: false })
@@ -111,19 +112,11 @@ function ProfileCard({ desktop }: { desktop: boolean }) {
 
   return (
     <Card desktop={desktop} title="Профиль">
-      <form onSubmit={submit}>
+      <AvatarField />
+
+      <form onSubmit={submit} className="mt-5">
         <Label>имя</Label>
         <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Как вас зовут" />
-
-        <div className="mt-4">
-          <Label hint="ссылка на картинку">аватар</Label>
-          <Input
-            value={avatar}
-            onChange={(event) => setAvatar(event.target.value)}
-            placeholder="Оставьте пустым — будут инициалы"
-            inputMode="url"
-          />
-        </div>
 
         <FieldError>{state.error}</FieldError>
         {state.saved ? <div className="mt-3 text-[13px] text-accent">Сохранено.</div> : null}
@@ -133,6 +126,103 @@ function ProfileCard({ desktop }: { desktop: boolean }) {
         </Button>
       </form>
     </Card>
+  )
+}
+
+/**
+ * Н-2: аватар картинкой с устройства.
+ *
+ * Сохраняется сразу по выбору файла, без общей кнопки: смотреть на новое
+ * лицо и гадать, применилось ли оно, — плохая сделка. Имя рядом со своей
+ * кнопкой, потому что его правят посимвольно и промежуточные состояния
+ * сохранять незачем.
+ */
+function AvatarField() {
+  const { profile, refresh } = useAuth()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function pick(file: File | undefined) {
+    if (!file) return
+    setBusy(true)
+    setError(null)
+    try {
+      const compressed = await compressImage(file, AVATAR_LIMITS)
+      const url = await authApi.uploadAvatar(compressed.blob)
+      await refresh({ avatarUrl: url })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Не получилось загрузить')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function clear() {
+    setBusy(true)
+    setError(null)
+    try {
+      await refresh({ avatarUrl: null })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Не получилось убрать')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <Label hint="картинка с устройства">аватар</Label>
+
+      <div className="mt-2.5 flex items-center gap-4">
+        <Avatar name={profile?.displayName ?? '?'} url={profile?.avatarUrl} size={64} accent />
+
+        <div className="flex flex-wrap gap-2.5">
+          <Button
+            type="button"
+            size="md"
+            variant="surface"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="bg-surface-3 text-fg"
+          >
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
+            {busy ? 'Загружаем…' : profile?.avatarUrl ? 'Заменить' : 'Выбрать файл'}
+          </Button>
+
+          {profile?.avatarUrl ? (
+            <Button
+              type="button"
+              size="md"
+              variant="surface"
+              onClick={() => void clear()}
+              disabled={busy}
+              className="bg-surface-3 text-fg-muted"
+            >
+              Убрать
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          void pick(event.target.files?.[0])
+          event.target.value = ''
+        }}
+      />
+
+      <div className="mt-2.5 text-[12.5px] leading-relaxed text-fg-dim">
+        Ужимаем до 512px и WebP прямо в браузере — в хранилище уходит пара десятков килобайт.
+        Без картинки останутся инициалы.
+      </div>
+
+      <FieldError>{error}</FieldError>
+    </div>
   )
 }
 

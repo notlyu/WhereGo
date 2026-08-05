@@ -215,6 +215,12 @@ export const localBackend: Backend = {
       return { ...me, ...patch } as Profile
     },
 
+    async uploadAvatar(blob) {
+      requireSession()
+      // Настоящего хранилища тут нет — картинка живёт в профиле как data URL.
+      return blobToDataUrl(blob)
+    },
+
     async changePassword() {
       throw new ApiError('В демо-режиме пароль не меняется — подключите Supabase.')
     },

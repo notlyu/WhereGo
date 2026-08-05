@@ -22,6 +22,14 @@ export interface Backend {
     subscribe(onChange: (profile: Profile | null) => void): () => void
     /** А-6, Н-2: имя и аватар. */
     updateProfile(patch: { displayName?: string; avatarUrl?: string | null }): Promise<Profile>
+    /**
+     * Н-2: аватар картинкой с устройства. Возвращает ссылку для `updateProfile`.
+     *
+     * Отдельно от `photos.upload`: в таблице `photos` стоит проверка
+     * «фото принадлежит либо месту, либо отзыву», и аватару там места нет.
+     * Файл живёт в том же хранилище, но записи о нём не заводится.
+     */
+    uploadAvatar(blob: Blob): Promise<string>
     /** А-7, Н-3: смена пароля. Текущий пароль спрашивает сам Supabase. */
     changePassword(next: string): Promise<void>
   }

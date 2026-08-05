@@ -10,6 +10,13 @@ const OPTIONS = {
   useWebWorker: true,
 } as const
 
+/**
+ * Н-2: аватар. Показывается кружком не больше 88px даже на десктопе —
+ * 1600px там были бы в двадцать раз больше нужного, и за них платило бы
+ * общее хранилище.
+ */
+export const AVATAR_LIMITS = { maxWidthOrHeight: 512, maxSizeMB: 0.06 }
+
 export interface CompressedImage {
   blob: Blob
   width: number
@@ -28,7 +35,10 @@ export class ImageError extends Error {}
  * через год или через двадцать. Поэтому сжимаем в браузере, а в хранилище
  * уходит уже готовый файл.
  */
-export async function compressImage(file: File): Promise<CompressedImage> {
+export async function compressImage(
+  file: File,
+  limits?: { maxWidthOrHeight: number; maxSizeMB: number },
+): Promise<CompressedImage> {
   if (!file.type.startsWith('image/')) {
     throw new ImageError('Это не изображение')
   }
@@ -41,7 +51,7 @@ export async function compressImage(file: File): Promise<CompressedImage> {
   // ленты ради действия, которое случается пару раз в месяц (П-1).
   const { default: imageCompression } = await import('browser-image-compression')
 
-  const blob = await imageCompression(file, OPTIONS)
+  const blob = await imageCompression(file, { ...OPTIONS, ...limits })
   const { width, height } = await readSize(blob)
 
   return { blob, width, height, originalBytes: file.size }

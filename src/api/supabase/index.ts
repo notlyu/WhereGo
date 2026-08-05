@@ -178,6 +178,23 @@ async function currentProfile(): Promise<Profile | null> {
   return toProfile(data)
 }
 
+/**
+ * Ключ файла в хранилище, если ссылка ведёт на аватар этого пользователя.
+ *
+ * Ссылку на аватар можно и вставить руками — на чужой сайт или на фото
+ * места. Такую не трогаем: удалять по чужой ссылке нечего, а по ссылке
+ * на фото места мы бы стёрли само фото.
+ */
+function ownAvatarKey(url: string | null, userId: string): string | null {
+  if (!url) return null
+  const marker = `/storage/v1/object/public/${BUCKET}/`
+  const at = url.indexOf(marker)
+  if (at === -1) return null
+
+  const key = decodeURIComponent(url.slice(at + marker.length).split('?')[0])
+  return key.startsWith(`${userId}/avatar-`) ? key : null
+}
+
 async function requireUserId(): Promise<string> {
   const { data } = await supabase.auth.getUser()
   if (!data.user) throw new ApiError('Сессия истекла. Войди заново.')
@@ -222,6 +239,11 @@ export const supabaseBackend: Backend = {
 
     async updateProfile(patch) {
       const id = await requireUserId()
+
+      // Прежний аватар убираем из хранилища: место платное и общее с фото
+      // мест, а старых картинок никто никогда не хватится.
+      const previous = patch.avatarUrl !== undefined ? await currentProfile().then((p) => p?.avatarUrl ?? null) : null
+
       const { data, error } = await supabase
         .from('profiles')
         .update({
@@ -232,7 +254,31 @@ export const supabaseBackend: Backend = {
         .select('*')
         .single()
       if (error) throw new ApiError(error.message)
+
+      const stale = ownAvatarKey(previous, id)
+      if (stale && stale !== ownAvatarKey(patch.avatarUrl ?? null, id)) {
+        // Сбой уборки не должен отменять уже сохранённый профиль.
+        await supabase.storage.from(BUCKET).remove([stale]).catch(() => undefined)
+      }
+
       return toProfile(data)
+    },
+
+    async uploadAvatar(blob) {
+      const id = await requireUserId()
+
+      // Та же папка по id пользователя, что и у фото: политики хранилища
+      // пускают писать только в свою (0002_storage.sql).
+      const key = `${id}/avatar-${crypto.randomUUID()}.webp`
+
+      const { error } = await supabase.storage.from(BUCKET).upload(key, blob, {
+        contentType: 'image/webp',
+        cacheControl: '31536000',
+        upsert: false,
+      })
+      if (error) throw new ApiError(error.message)
+
+      return supabase.storage.from(BUCKET).getPublicUrl(key).data.publicUrl
     },
 
     async changePassword(next) {
