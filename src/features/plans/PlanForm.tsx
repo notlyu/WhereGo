@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Label, Textarea } from '@/components/ui/Field'
 import { useSavePlan } from '@/hooks/queries'
 import { cn } from '@/lib/cn'
+import { formatDate } from '@/lib/format'
 import type { Place, Plan } from '@/types/models'
 
 interface Props {
@@ -37,7 +38,9 @@ export function PlanForm({ plan, date, places, desktop, onDone }: Props) {
         id: plan?.id,
         input: {
           placeId,
-          plannedDate: plan?.plannedDate ?? date,
+          // Всегда выбранный день, а не тот, на котором план завели: так
+          // календарь заодно переносит план на другое число.
+          plannedDate: date,
           // Время необязательно: «сходим в субботу» — тоже план.
           plannedTime: time || null,
           note: note.trim() || null,
@@ -52,14 +55,22 @@ export function PlanForm({ plan, date, places, desktop, onDone }: Props) {
       onSubmit={submit}
       className={cn('animate-pop rounded-[18px] p-[18px]', desktop ? 'bg-surface-d' : 'bg-surface-2')}
     >
-      <Label>куда идём</Label>
-      <select value={placeId} onChange={(event) => setPlaceId(event.target.value)} className={field}>
-        {places.map((place) => (
-          <option key={place.id} value={place.id}>
-            {place.title}
-          </option>
-        ))}
-      </select>
+      {/* Дата приходит из календаря и меняется прямо при открытой форме —
+          поэтому она показана, а не подразумевается. Своего поля даты тут нет:
+          два способа выбрать одно и то же расходятся между собой. */}
+      <Label hint="выбирается в календаре">когда</Label>
+      <div className={cn(field, 'flex items-center font-semibold')}>{formatDate(date)}</div>
+
+      <div className="mt-4">
+        <Label>куда идём</Label>
+        <select value={placeId} onChange={(event) => setPlaceId(event.target.value)} className={field}>
+          {places.map((place) => (
+            <option key={place.id} value={place.id}>
+              {place.title}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="mt-4">
         <Label hint="необязательно">во сколько</Label>

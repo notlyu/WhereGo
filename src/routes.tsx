@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate } from 'react-router'
 
 import { AppShell } from '@/components/layout/AppShell'
 import { ErrorScreen } from '@/components/layout/ErrorScreen'
@@ -14,7 +14,6 @@ import { PlacePage } from '@/features/place/PlacePage'
 // отдельные чанки. Форма, профиль и экраны следующих этапов грузятся по клику.
 const IdeasPage = lazyImport(() => import('@/features/feed/IdeasPage'), 'IdeasPage')
 const MapPage = lazyImport(() => import('@/features/map/MapPage'), 'MapPage')
-const MatchesPage = lazyImport(() => import('@/features/swipe/MatchesPage'), 'MatchesPage')
 const SwipePage = lazyImport(() => import('@/features/swipe/SwipePage'), 'SwipePage')
 const PlansPage = lazyImport(() => import('@/features/plans/PlansPage'), 'PlansPage')
 const HistoryPage = lazyImport(() => import('@/features/history/HistoryPage'), 'HistoryPage')
@@ -48,7 +47,9 @@ export const router = createBrowserRouter([
 
       { path: 'map', element: <LazyRoute><MapPage /></LazyRoute> },
       { path: 'swipe', element: <LazyRoute><SwipePage /></LazyRoute> },
-      { path: 'matches', element: <LazyRoute><MatchesPage /></LazyRoute> },
+      // «Оба хотим» теперь стоит рядом со свайпами, отдельного экрана нет.
+      // Адрес оставлен: он мог осесть в закладке или на домашнем экране.
+      { path: 'matches', element: <Navigate to="/swipe" replace /> },
       { path: 'plans', element: <LazyRoute><PlansPage /></LazyRoute> },
       { path: 'history', element: <LazyRoute><HistoryPage /></LazyRoute> },
       { path: 'year', element: <LazyRoute><YearPage /></LazyRoute> },

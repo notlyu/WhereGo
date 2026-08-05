@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowUpRight, Compass, Pencil, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
+import { PlaceAddress } from '@/components/place/PlaceAddress'
 import { PlaceCover } from '@/components/place/PlaceCover'
 import { STATUS_OPTIONS } from '@/components/place/status'
 import { Avatar } from '@/components/ui/Avatar'
@@ -208,9 +209,8 @@ function PlaceInfo({ place, mine, desktop, onStatus, onEdit, onDelete, deleting,
         {place.title}
       </h1>
 
-      {place.address ? (
-        <div className={cn('text-fg-muted', desktop ? 'mt-3 text-[14.5px]' : 'mt-2.5 text-sm')}>{place.address}</div>
-      ) : null}
+      <PlaceAddress place={place} className={cn(desktop ? 'mt-3 text-[14.5px]' : 'mt-2.5 text-sm')} />
+
 
       {/* М-12: часы на сегодня. Без часов строки нет вовсе. */}
       {todayLabel(parseHours(place.openingHours)) ? (

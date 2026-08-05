@@ -68,7 +68,7 @@ export function SwipePage() {
 
       <header className="relative">
         {isDesktop ? (
-          <div className="text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">выбор</div>
+          <div className="text-[11.5px] font-semibold tracking-[.1em] text-fg-muted uppercase">выбери за нас</div>
         ) : null}
         <h1
           className={cn(
@@ -76,96 +76,124 @@ export function SwipePage() {
             isDesktop ? 'mt-2 text-[44px] leading-none' : 'text-4xl leading-none',
           )}
         >
-          Выбери за нас
+          {isDesktop ? 'Свайпы' : 'Выбери за нас'}
         </h1>
         <p className={cn('text-sm leading-[1.5] text-fg-muted', isDesktop ? 'mt-3 max-w-[560px]' : 'mt-2')}>
-          Свайпаете вы оба. Место, за которое сказали «хочу» и тот и другой, падает в «Оба хотим».
+          Свайпаете вы оба. Место, за которое сказали «хочу» и тот и другой, падает в «Оба хотим».{' '}
+          {progress.total > 0 ? `Отсмотрено ${progress.done} из ${progress.total}.` : 'Мест пока нет.'}
         </p>
 
         <div className={cn('flex flex-wrap items-center gap-2.5', isDesktop ? 'mt-5' : 'mt-3.5')}>
-          <Link
-            to="/matches"
-            className={cn(
-              'flex flex-1 items-center gap-3 rounded-pill py-2.5 pr-3 pl-[18px] transition-colors',
-              isDesktop ? 'max-w-[380px] bg-surface-d hover:bg-surface-2' : 'bg-surface-2 hover:bg-surface-4',
-            )}
-          >
-            <span className="flex-1 text-sm font-semibold text-fg">Оба хотим · {matches.length}</span>
-            <span className="rounded-pill bg-accent/15 px-3 py-[7px] text-[12.5px] font-semibold text-accent">
-              открыть список
-            </span>
-          </Link>
-
           <Button variant="surface" size="md" onClick={surprise} className={isDesktop ? 'bg-surface-d' : undefined}>
             <Shuffle size={15} />
             Выбери за нас
           </Button>
         </div>
-
-        <div className="mt-3 text-xs text-fg-dim">
-          {progress.total > 0 ? `Отсмотрено ${progress.done} из ${progress.total}` : 'Мест пока нет'}
-        </div>
       </header>
 
-      {isPending ? (
-        <div className={cn('animate-pulse rounded-3xl bg-surface-2', isDesktop ? 'mt-6 h-[460px] max-w-[420px]' : 'mt-5 h-[420px]')} />
-      ) : current ? (
-        <>
-          <div className={cn('relative', isDesktop ? 'mt-6 h-[460px] max-w-[420px]' : 'mt-5 min-h-[380px]')}>
-            {/* Две подложки — видно, что за верхней карточкой есть ещё. */}
-            <div className="absolute inset-x-[18px] top-[18px] bottom-1 rounded-3xl bg-surface-d" />
-            <div className="absolute inset-x-[9px] top-[9px] bottom-3 rounded-3xl bg-track" />
+      {/* Макет держит совпадения на этом же экране, рядом с карточкой: список
+          из двух-трёх мест не стоит отдельной страницы, а после свайпа сразу
+          видно, что совпадение случилось. */}
+      <div
+        className={cn(
+          isDesktop ? 'mt-6 grid items-start gap-7 grid-cols-[minmax(320px,420px)_minmax(300px,1fr)]' : 'mt-5',
+        )}
+      >
+        <div>
+          {isPending ? (
+            <div className={cn('animate-pulse rounded-3xl bg-surface-2', isDesktop ? 'h-[460px]' : 'h-[420px]')} />
+          ) : current ? (
+            <>
+              <div className={cn('relative', isDesktop ? 'h-[460px]' : 'min-h-[380px]')}>
+                {/* Две подложки — видно, что за верхней карточкой есть ещё. */}
+                <div className="absolute inset-x-[18px] top-[18px] bottom-1 rounded-3xl bg-surface-d" />
+                <div className="absolute inset-x-[9px] top-[9px] bottom-3 rounded-3xl bg-track" />
 
-            <SwipeCard place={current} flying={flying} onOpen={() => void navigate(`/place/${current.id}`)} />
-          </div>
+                <SwipeCard place={current} flying={flying} onOpen={() => void navigate(`/place/${current.id}`)} />
+              </div>
 
-          <div className={cn('flex justify-center gap-4', isDesktop ? 'mt-6 max-w-[420px]' : 'mt-6')}>
-            <button
-              type="button"
-              onClick={() => vote(false)}
-              disabled={locked}
-              aria-label="Не хочу"
-              className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-pill bg-surface-2 text-fg-muted transition-colors hover:bg-surface-4 disabled:opacity-50"
-            >
-              <X size={24} />
-            </button>
-            <button
-              type="button"
-              onClick={() => vote(true)}
-              disabled={locked}
-              aria-label="Хочу"
-              className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-pill bg-accent text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-50"
-            >
-              <Check size={24} />
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className={cn(isDesktop ? 'mt-6 max-w-[560px]' : 'mt-6')}>
-          <EmptyState
-            title={progress.total === 0 ? 'Свайпать пока нечего' : 'Всё пересмотрено'}
-            hint={
-              progress.total === 0
-                ? 'Добавьте несколько мест — и возвращайтесь.'
-                : matches.length > 0
-                  ? `Совпадений набралось ${matches.length}. Осталось выбрать вечер.`
-                  : 'Совпадений пока нет. Ждём, пока второй тоже пройдёт список.'
-            }
-            action={
-              matches.length > 0 ? (
-                <Link to="/matches" className="text-sm font-semibold text-accent">
-                  Открыть «Оба хотим»
-                </Link>
-              ) : (
+              <div className="mt-6 flex justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => vote(false)}
+                  disabled={locked}
+                  aria-label="Не хочу"
+                  className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-pill bg-surface-2 text-fg-muted transition-colors hover:bg-surface-4 disabled:opacity-50"
+                >
+                  <X size={24} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => vote(true)}
+                  disabled={locked}
+                  aria-label="Хочу"
+                  className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-pill bg-accent text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-50"
+                >
+                  <Check size={24} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <EmptyState
+              title={progress.total === 0 ? 'Свайпать пока нечего' : 'Всё пересмотрено'}
+              hint={
+                progress.total === 0
+                  ? 'Добавьте несколько мест — и возвращайтесь.'
+                  : matches.length > 0
+                    ? 'Совпадения — рядом. Осталось выбрать вечер.'
+                    : 'Совпадений пока нет. Ждём, пока второй тоже пройдёт список.'
+              }
+              action={
                 <Link to="/" className="text-sm font-semibold text-accent">
                   Вернуться в ленту
                 </Link>
-              )
-            }
-          />
+              }
+            />
+          )}
         </div>
-      )}
+
+        <section className={isDesktop ? undefined : 'mt-8'}>
+          <div className="eyebrow">оба хотим · {matches.length}</div>
+
+          {matches.length > 0 ? (
+            <div className={cn('mt-3.5 grid gap-2.5', isDesktop ? 'grid-cols-2' : 'grid-cols-1')}>
+              {matches.map((place) => (
+                <MatchCard key={place.id} place={place} desktop={isDesktop} />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3.5 text-[15px] leading-relaxed text-fg-dim">
+              Пока пусто. Свайпайте — место, которое отметили оба, появится здесь.
+            </div>
+          )}
+        </section>
+      </div>
     </div>
+  )
+}
+
+/** В-2: место, за которое сказали «хочу» оба. */
+function MatchCard({ place, desktop }: { place: Place; desktop: boolean }) {
+  const meta = [place.category?.name, place.price ? PRICE_SHORT[place.price] : null].filter(Boolean).join(' · ')
+
+  return (
+    <Link
+      to={`/place/${place.id}`}
+      className={cn(
+        'flex items-center gap-3.5 rounded-[18px] p-3.5 transition-colors',
+        desktop ? 'bg-surface-d hover:bg-surface-2' : 'bg-surface-2 hover:bg-surface-4',
+      )}
+    >
+      {place.coverUrl ? (
+        <img src={place.coverUrl} alt="" className="h-14 w-14 flex-none rounded-[14px] object-cover" />
+      ) : (
+        <div className="hatch-sm h-14 w-14 flex-none rounded-[14px]" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[15px] font-semibold text-fg">{place.title}</div>
+        <div className="mt-1 truncate text-[12.5px] text-fg-muted">{meta || 'без категории'}</div>
+      </div>
+    </Link>
   )
 }
 
@@ -180,8 +208,11 @@ function SwipeCard({ place, flying, onOpen }: { place: Place; flying: 'yes' | 'n
         flying === 'no' && '-translate-x-[120%] -rotate-12 opacity-0',
       )}
     >
-      <div className="relative flex-1">
-        <PlaceCover place={place} height={9999} className="h-full" showStatus={false} label="фото пока нет" />
+      {/* `min-h-0` обязателен: без него флекс-элемент растягивается под
+          содержимое, обложка занимает всю карточку и выдавливает название
+          за нижний край — карточка выглядит пустой. */}
+      <div className="relative min-h-0 flex-1">
+        <PlaceCover place={place} className="h-full" showStatus={false} label="фото пока нет" />
 
         {/* Штампы: появляются в момент решения, как в макете. */}
         <Stamp side="yes" visible={flying === 'yes'}>

@@ -17,7 +17,9 @@ export function PlaceCover({
   showStatus = true,
 }: {
   place: Place
-  height: number
+  /** Высота в пикселях. Без неё обложка тянется под родителя — так её ставит
+   *  карточка свайпов, где высоту задаёт колода, а не сама обложка. */
+  height?: number
   label?: string
   className?: string
   showStatus?: boolean
@@ -25,7 +27,7 @@ export function PlaceCover({
   return (
     <div
       className={cn('relative flex items-center justify-center overflow-hidden', place.coverUrl ? 'bg-surface-2' : 'hatch', className)}
-      style={{ height }}
+      style={height === undefined ? undefined : { height }}
     >
       {place.coverUrl ? (
         <img src={place.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" />

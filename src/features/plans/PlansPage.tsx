@@ -73,10 +73,10 @@ export function PlansPage() {
           <button
             key={day.date}
             type="button"
-            onClick={() => {
-              setSelected(day.date)
-              setEditing(undefined)
-            }}
+            // Форму при смене дня не закрываем: выбор числа — часть заполнения,
+            // а не отмена. Раньше тап по другому числу стирал начатый план,
+            // и дату приходилось угадывать до нажатия «+».
+            onClick={() => setSelected(day.date)}
             className={cn(
               'flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl text-[13px] transition-colors',
               day.date === selected ? 'bg-accent font-bold text-on-accent' : 'hover:bg-surface-3',
@@ -117,6 +117,10 @@ export function PlansPage() {
       {editing !== undefined ? (
         <div className="mt-3.5">
           <PlanForm
+            // Ключ разделяет «новый план» и правку конкретного плана. Без него
+            // форма остаётся той же и держит прежние значения: нажали «+»,
+            // потом карандаш — и в полях висит недописанный новый план.
+            key={editing?.id ?? 'new'}
             plan={editing}
             date={selected}
             places={list}

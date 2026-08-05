@@ -1,7 +1,8 @@
-import { ArrowUpRight, Crosshair, MapPin } from 'lucide-react'
+import { ChevronDown, Crosshair, List } from 'lucide-react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 
+import { PlaceAddress } from '@/components/place/PlaceAddress'
 import { STATUS_OPTIONS } from '@/components/place/status'
 import { Chip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -9,7 +10,7 @@ import { useFeedData } from '@/features/feed/useFeedData'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
-import { formatDistance, haversine, yandexMapsUrl } from '@/lib/geo'
+import { formatDistance, haversine } from '@/lib/geo'
 import { PLACE_STATUS_LABEL, PRICE_SHORT, type Place } from '@/types/models'
 
 // ⚠️ MapLibre весит больше половины бюджета бандла (П-1). Держим его в
@@ -22,6 +23,8 @@ export function MapPage() {
   const { coords, error: geoError, busy: locating, locate } = useGeolocation()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
+  /** Телефон: список мест поверх карты. На десктопе он и так слева. */
+  const [listOpen, setListOpen] = useState(false)
 
   // К-6: на карте те же места, что в ленте, — фильтры общие.
   // К-1: без координат маркера не поставить.
@@ -136,6 +139,10 @@ export function MapPage() {
   }
 
   // ── Телефон: карта во весь экран, легенда сверху, карточка снизу ────────
+  //
+  // Списка рядом с картой на телефоне не помещается, а искать место, тыкая
+  // в одинаковые точки, — мучение. Поэтому список выезжает снизу поверх карты:
+  // выбрал строку — карта подлетела к метке, панель закрылась.
   return (
     <div className="relative h-[calc(100vh-140px)]">
       {canvas}
@@ -146,7 +153,54 @@ export function MapPage() {
         <div className="pointer-events-auto overflow-x-auto rail">{legend}</div>
       </div>
 
-      {selected ? <MiniCard place={selected} me={coords} className="absolute inset-x-4 bottom-4" /> : null}
+      {/* Отступ снизу больше обычного: под ним строка «OpenFreeMap ©
+          OpenStreetMap». Её нельзя закрывать — этого требует лицензия данных. */}
+      <div className="absolute inset-x-4 bottom-11 z-10 flex flex-col gap-2">
+        {listOpen ? (
+          <div className="animate-pop flex max-h-[58vh] flex-col overflow-hidden rounded-[20px] bg-surface-2/95 backdrop-blur-md">
+            <div className="flex flex-none items-center gap-2 px-4 pt-3.5 pb-2">
+              <div className="flex-1 eyebrow">места на карте · {onMap.length}</div>
+              <button
+                type="button"
+                onClick={() => setListOpen(false)}
+                aria-label="Свернуть список"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-pill bg-surface-4 text-fg-muted transition-colors hover:text-fg"
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5 overflow-y-auto px-2.5 pt-1 pb-3">
+              {onMap.map((place) => (
+                <MapRow
+                  key={place.id}
+                  place={place}
+                  active={place.id === selectedId}
+                  me={coords}
+                  desktop={false}
+                  onClick={() => {
+                    setSelectedId(place.id)
+                    setListOpen(false)
+                  }}
+                />
+              ))}
+              {onMap.length === 0 ? <div className="px-2 py-4 text-sm text-fg-dim">{hint(withoutCoords)}</div> : null}
+            </div>
+          </div>
+        ) : (
+          <>
+            {selected ? <MiniCard place={selected} me={coords} /> : null}
+            <button
+              type="button"
+              onClick={() => setListOpen(true)}
+              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-pill bg-surface-2/90 text-sm font-semibold text-fg backdrop-blur-md transition-colors hover:bg-surface-4"
+            >
+              <List size={16} />
+              Выбрать из списка · {onMap.length}
+            </button>
+          </>
+        )}
+      </div>
 
       {onMap.length === 0 ? (
         <div className="absolute inset-x-5 top-24">
@@ -196,7 +250,7 @@ function MiniCard({
 
       <div className="min-w-0 flex-1">
         <div className="truncate font-display text-[21px] font-medium text-fg">{place.title}</div>
-        <YandexLink place={place} />
+        <PlaceAddress place={place} className="mt-1 text-[13px]" />
         <div className="mt-1.5 truncate text-[13px] text-fg-muted">{meta(place, me)}</div>
         <div className="mt-3 flex items-center gap-2">
           <div className="rounded-pill bg-surface-4 px-2.5 py-1.5 text-xs font-semibold text-fg">
@@ -209,44 +263,18 @@ function MiniCard({
   )
 }
 
-/**
- * Адрес под названием, он же ссылка в Яндекс Карты по координатам метки.
- *
- * Ведём по координатам, а не по тексту адреса: адрес мы записали руками и он
- * бывает неточным, а метку ставили по карте. Поиск по кривой строке уводит
- * в другой район молча, координаты — нет.
- */
-function YandexLink({ place }: { place: Place }) {
-  if (place.lat === null || place.lng === null) return null
-
-  return (
-    <a
-      href={yandexMapsUrl(place.lat, place.lng)}
-      target="_blank"
-      rel="noreferrer noopener"
-      title="Открыть в Яндекс Картах"
-      // `relative` поднимает ссылку над растянутым слоем перехода на место,
-      // `w-fit` не даёт ей забрать всю ширину строки и перехватывать клики
-      // по пустому месту справа от адреса.
-      className="relative mt-1 flex w-fit max-w-full items-center gap-1.5 text-[13px] text-fg-dim transition-colors hover:text-accent"
-    >
-      <MapPin size={13} className="flex-none" />
-      <span className="truncate">{place.address ?? 'показать в Яндекс Картах'}</span>
-      <ArrowUpRight size={13} className="flex-none opacity-70" />
-    </a>
-  )
-}
-
 function MapRow({
   place,
   active,
   me,
   onClick,
+  desktop = true,
 }: {
   place: Place
   active: boolean
   me: { lat: number; lng: number } | null
   onClick: () => void
+  desktop?: boolean
 }) {
   return (
     <button
@@ -254,7 +282,13 @@ function MapRow({
       onClick={onClick}
       className={cn(
         'flex cursor-pointer items-center gap-3 rounded-card p-3 text-left transition-colors',
-        active ? 'bg-surface-2' : 'bg-surface-d hover:bg-surface-2',
+        desktop
+          ? active
+            ? 'bg-surface-2'
+            : 'bg-surface-d hover:bg-surface-2'
+          : active
+            ? 'bg-surface-4'
+            : 'bg-surface-1 hover:bg-surface-3',
       )}
     >
       {place.coverUrl ? (
