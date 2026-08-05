@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { formatDistance } from './format'
-import { haversine, SPB_CENTER } from './geo'
+import { haversine, SPB_CENTER, yandexMapsUrl } from './geo'
 
 describe('haversine', () => {
   it('до самой себя — ноль', () => {
@@ -24,6 +24,33 @@ describe('haversine', () => {
     const metres = haversine(59, 30, 60, 30)
     expect(metres).toBeGreaterThan(110_000)
     expect(metres).toBeLessThan(112_000)
+  })
+})
+
+describe('yandexMapsUrl', () => {
+  it('ставит долготу перед широтой — Яндекс ждёт именно так', () => {
+    const url = new URL(yandexMapsUrl(SPB_CENTER.lat, SPB_CENTER.lng))
+    expect(url.searchParams.get('ll')).toBe('30.314100,59.938600')
+    expect(url.searchParams.get('whatshere[point]')).toBe('30.314100,59.938600')
+  })
+
+  it('перепутанный порядок увёл бы из Петербурга — проверяем на глаз', () => {
+    // 59.94 долготы и 30.31 широты — это Каспий, а не Невский проспект.
+    expect(yandexMapsUrl(59.9386, 30.3141)).not.toContain('59.938600%2C30.314100')
+  })
+
+  it('открывает карточку точки, а не просто метку — с неё строят маршрут', () => {
+    const url = new URL(yandexMapsUrl(SPB_CENTER.lat, SPB_CENTER.lng))
+    expect(url.pathname).toBe('/maps/')
+    expect(url.searchParams.get('z')).toBe('17')
+  })
+
+  it('не скатывается в экспоненциальную запись у нулевых координат', () => {
+    expect(new URL(yandexMapsUrl(0.0000001, 0)).searchParams.get('ll')).toBe('0.000000,0.000000')
+  })
+
+  it('отрицательные координаты остаются целыми', () => {
+    expect(new URL(yandexMapsUrl(-33.8688, 151.2093)).searchParams.get('ll')).toBe('151.209300,-33.868800')
   })
 })
 

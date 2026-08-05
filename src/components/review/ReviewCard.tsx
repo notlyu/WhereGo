@@ -46,6 +46,9 @@ export function ReviewCard({ review, mine, desktop = false, onEdit, onDelete, de
           здесь — отдельного экрана для этого нет. */}
       {mine ? (
         <div className="mt-3.5">
+          {/* Подпись обязательна: без неё пустая рамка «плюса» в углу читается
+              как украшение, и фото к отзыву просто не добавляют. */}
+          <div className="mb-2 eyebrow">фото к отзыву</div>
           <PhotoUploader placeId={review.placeId} target={{ reviewId: review.id }} desktop={desktop} compact />
         </div>
       ) : photos.length ? (

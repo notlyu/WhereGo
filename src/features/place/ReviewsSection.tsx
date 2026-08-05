@@ -5,8 +5,9 @@ import { ReviewForm } from '@/components/review/ReviewForm'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/hooks/auth-context'
 import { useDeleteReview, usePhotos, useReviews, useSaveReview } from '@/hooks/queries'
+import { useUploadPhotos } from '@/hooks/useUploadPhotos'
 import { cn } from '@/lib/cn'
-import type { Place } from '@/types/models'
+import type { Place, ReviewInput } from '@/types/models'
 
 /**
  * О-1…О-7. Отзывы живут прямо на карточке места, отдельного экрана нет:
@@ -21,9 +22,34 @@ export function ReviewsSection({ place, desktop = false }: { place: Place; deskt
   const save = useSaveReview(place.id)
   const remove = useDeleteReview(place.id)
   const [editing, setEditing] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+
+  // Цель подменяется на вызове: id отзыва появляется только после сохранения.
+  const { busy: sendingPhotos, upload } = useUploadPhotos({ placeId: place.id }, place.id)
 
   const mine = reviews.find((review) => review.authorId === meId) ?? null
   const others = reviews.filter((review) => review.authorId !== meId)
+
+  /**
+   * Ф-8: сперва отзыв, потом его фото — крепить файл не к чему, пока у отзыва
+   * нет id. Форма остаётся открытой до конца отправки, чтобы файлы не уходили
+   * втихую в закрытом окне.
+   */
+  async function onSave(input: ReviewInput, files: File[]) {
+    setPhotoError(null)
+    const review = await save.mutateAsync(input).catch(() => null)
+    if (!review) return // текст ошибки форма покажет сама, из save.error
+
+    const result = await upload(files, { reviewId: review.id })
+    if (result.failed.length) {
+      setPhotoError(
+        result.failed.length === files.length
+          ? `фото не загрузились: ${result.failed[0].error}`
+          : `${result.failed.length} из ${files.length} фото не загрузились: ${result.failed[0].error}`,
+      )
+    }
+    setEditing(false)
+  }
 
   async function onDelete(id: string) {
     if (!confirm('Удалить свой отзыв? Отменить будет нельзя.')) return
@@ -61,13 +87,19 @@ export function ReviewsSection({ place, desktop = false }: { place: Place; deskt
         <ReviewForm
           review={mine}
           desktop={desktop}
-          saving={save.isPending}
+          saving={save.isPending || sendingPhotos}
           error={save.error}
           onCancel={() => setEditing(false)}
-          onSave={(input) => {
-            save.mutate(input, { onSuccess: () => setEditing(false) })
-          }}
+          onSave={(input, files) => void onSave(input, files)}
         />
+      ) : null}
+
+      {/* Отзыв сохранён, а фото — нет: молчать нельзя, но и держать форму
+          открытой незачем. Дозагрузить можно прямо в карточке отзыва. */}
+      {photoError ? (
+        <div className="px-1 text-[13px] leading-relaxed text-[#FF7A6B]">
+          Отзыв сохранён, но {photoError} Добавьте их ещё раз в карточке отзыва.
+        </div>
       ) : null}
 
       {others.map((review) => (

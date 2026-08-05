@@ -1,4 +1,4 @@
-import { Crosshair } from 'lucide-react'
+import { ArrowUpRight, Crosshair, MapPin } from 'lucide-react'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 
@@ -9,7 +9,7 @@ import { useFeedData } from '@/features/feed/useFeedData'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
-import { formatDistance, haversine } from '@/lib/geo'
+import { formatDistance, haversine, yandexMapsUrl } from '@/lib/geo'
 import { PLACE_STATUS_LABEL, PRICE_SHORT, type Place } from '@/types/models'
 
 // ⚠️ MapLibre весит больше половины бюджета бандла (П-1). Держим его в
@@ -176,14 +176,18 @@ function MiniCard({
   desktop?: boolean
 }) {
   return (
-    <Link
-      to={`/place/${place.id}`}
+    // Карточка целиком ведёт на место, но внутри есть вторая ссылка — в Яндекс
+    // Карты. Вложенные ссылки браузер разбирает как попало, поэтому переход на
+    // место сделан растянутым слоем под содержимым, а не обёрткой вокруг него.
+    <div
       className={cn(
-        'animate-pop flex gap-3.5 rounded-[20px] p-3.5 transition-colors',
+        'animate-pop relative flex gap-3.5 rounded-[20px] p-3.5 transition-colors',
         desktop ? 'bg-surface-d hover:bg-surface-2' : 'bg-surface-2 hover:bg-surface-4',
         className,
       )}
     >
+      <Link to={`/place/${place.id}`} aria-label={`Открыть «${place.title}»`} className="absolute inset-0 rounded-[20px]" />
+
       {place.coverUrl ? (
         <img src={place.coverUrl} alt="" className="h-20 w-20 flex-none rounded-[14px] object-cover" />
       ) : (
@@ -192,6 +196,7 @@ function MiniCard({
 
       <div className="min-w-0 flex-1">
         <div className="truncate font-display text-[21px] font-medium text-fg">{place.title}</div>
+        <YandexLink place={place} />
         <div className="mt-1.5 truncate text-[13px] text-fg-muted">{meta(place, me)}</div>
         <div className="mt-3 flex items-center gap-2">
           <div className="rounded-pill bg-surface-4 px-2.5 py-1.5 text-xs font-semibold text-fg">
@@ -200,7 +205,35 @@ function MiniCard({
           <div className="text-xs font-semibold text-accent">открыть →</div>
         </div>
       </div>
-    </Link>
+    </div>
+  )
+}
+
+/**
+ * Адрес под названием, он же ссылка в Яндекс Карты по координатам метки.
+ *
+ * Ведём по координатам, а не по тексту адреса: адрес мы записали руками и он
+ * бывает неточным, а метку ставили по карте. Поиск по кривой строке уводит
+ * в другой район молча, координаты — нет.
+ */
+function YandexLink({ place }: { place: Place }) {
+  if (place.lat === null || place.lng === null) return null
+
+  return (
+    <a
+      href={yandexMapsUrl(place.lat, place.lng)}
+      target="_blank"
+      rel="noreferrer noopener"
+      title="Открыть в Яндекс Картах"
+      // `relative` поднимает ссылку над растянутым слоем перехода на место,
+      // `w-fit` не даёт ей забрать всю ширину строки и перехватывать клики
+      // по пустому месту справа от адреса.
+      className="relative mt-1 flex w-fit max-w-full items-center gap-1.5 text-[13px] text-fg-dim transition-colors hover:text-accent"
+    >
+      <MapPin size={13} className="flex-none" />
+      <span className="truncate">{place.address ?? 'показать в Яндекс Картах'}</span>
+      <ArrowUpRight size={13} className="flex-none opacity-70" />
+    </a>
   )
 }
 
