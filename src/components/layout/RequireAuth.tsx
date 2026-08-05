@@ -19,7 +19,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 function Splash() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg">
+    <div className="flex min-h-dvh items-center justify-center bg-bg">
       <div className="font-display text-3xl font-medium tracking-[-.02em] text-fg-dim">Куда пойти</div>
     </div>
   )

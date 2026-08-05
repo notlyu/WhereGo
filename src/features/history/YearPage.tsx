@@ -26,7 +26,7 @@ export function YearPage() {
   const running = current === new Date().getFullYear()
 
   return (
-    <div className={cn(isDesktop ? '' : 'px-5 pt-3.5 pb-8')}>
+    <div className={cn(isDesktop ? '' : 'px-5 pt-3.5')}>
       <header>
         <div className={cn('font-semibold tracking-[.1em] uppercase', isDesktop ? 'text-[11.5px] text-fg-muted' : 'eyebrow')}>
           итоги

@@ -41,7 +41,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg px-7 pb-8">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-bg px-7 pb-8">
       <div className="glow-accent pointer-events-none absolute -top-40 -right-16 -left-16 h-[420px]" />
 
       <div className="relative mx-auto w-full max-w-[420px] pt-16">

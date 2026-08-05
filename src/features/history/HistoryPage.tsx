@@ -20,7 +20,7 @@ export function HistoryPage() {
   const loading = loadingPlaces || loadingReviews
 
   return (
-    <div className={cn(isDesktop ? '' : 'px-5 pt-3.5 pb-8')}>
+    <div className={cn(isDesktop ? '' : 'px-5 pt-3.5')}>
       <header>
         <div
           className={cn(

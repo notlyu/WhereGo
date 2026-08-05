@@ -174,7 +174,7 @@ export function PlansPage() {
   }
 
   return (
-    <div className="px-5 pt-3.5 pb-8">
+    <div className="px-5 pt-3.5">
       <h1 className="mb-5 font-display text-[30px] font-medium tracking-[-.02em] text-fg">Планы</h1>
       {calendar}
       {dayList}

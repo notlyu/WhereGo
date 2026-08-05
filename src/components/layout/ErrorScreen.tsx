@@ -15,7 +15,7 @@ export function ErrorScreen() {
   const details = describe(error)
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-bg px-6 text-center">
       <div className="eyebrow">{notFound ? 'страница не нашлась' : 'что-то сломалось'}</div>
 
       <h1 className="mt-4 max-w-[420px] font-display text-[38px] leading-[1.05] font-medium tracking-[-.02em] text-fg">

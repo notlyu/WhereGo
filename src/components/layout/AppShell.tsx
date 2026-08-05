@@ -9,10 +9,19 @@ import { Sidebar } from './Sidebar'
  * До 900px — плавающая пилюля снизу, отступ контента `padding:0 20px 128px`
  * из мобильного макета. От 900px — панель 252px слева и `34px 40px 60px`
  * из десктопного.
+ *
+ * Отступ снизу задан здесь, один раз на все экраны: 128px — это высота
+ * плавающей пилюли с зазором, плюс `env()` под домашнюю полосу айфона.
+ * Страницы своего нижнего отступа не добавляют — иначе он удваивается
+ * и под содержимым остаётся пустая полоса на пол-экрана.
+ *
+ * Высота — `dvh`, а не `vh`: в Safari на айфоне `vh` меряет экран так,
+ * будто адресная строка свёрнута, и короткая страница всё равно получает
+ * лишнюю прокрутку.
  */
 export function AppShell() {
   return (
-    <div className="flex min-h-screen bg-bg">
+    <div className="flex min-h-dvh bg-bg">
       <Sidebar />
       <main className="min-w-0 flex-1 pb-[calc(128px+env(safe-area-inset-bottom))] desktop:max-w-[1400px] desktop:px-10 desktop:pt-[34px] desktop:pb-15">
         <Outlet />

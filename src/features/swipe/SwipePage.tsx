@@ -61,7 +61,7 @@ export function SwipePage() {
   }
 
   return (
-    <div className={cn('relative', isDesktop ? '' : 'px-5 pt-4 pb-28')}>
+    <div className={cn('relative', isDesktop ? '' : 'px-5 pt-4')}>
       {isDesktop ? null : (
         <div className="glow-accent pointer-events-none absolute -top-58 -right-20 -left-20 h-[400px]" />
       )}

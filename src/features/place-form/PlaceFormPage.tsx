@@ -249,7 +249,7 @@ export function PlaceFormPage() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="px-5 pt-2.5 pb-10">
+    <form onSubmit={onSubmit} className="px-5 pt-2.5">
       <div className="flex items-center gap-3.5 pt-2 pb-5">
         <button
           type="button"

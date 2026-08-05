@@ -13,7 +13,7 @@ export function SettingsPage() {
   const isDesktop = useIsDesktop()
 
   return (
-    <div className={cn(isDesktop ? 'max-w-[720px]' : 'px-5 pt-3.5 pb-8')}>
+    <div className={cn(isDesktop ? 'max-w-[720px]' : 'px-5 pt-3.5')}>
       <div className={cn('font-semibold tracking-[.1em] uppercase', isDesktop ? 'text-[11.5px] text-fg-muted' : 'eyebrow')}>
         аккаунт
       </div>
