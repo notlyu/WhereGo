@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router'
 
+import { PendingPhotos } from '@/components/photo/PendingPhotos'
+import { PhotoUploader } from '@/components/photo/PhotoUploader'
 import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
 import { FieldError, Input, Label, Textarea } from '@/components/ui/Field'
@@ -11,6 +13,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { useAuth } from '@/hooks/auth-context'
 import { useCreatePlace, usePlace, useSetPlaceTags, useTags, useUpdatePlace } from '@/hooks/queries'
 import { useDraft } from '@/hooks/useDraft'
+import { useUploadPhotos } from '@/hooks/useUploadPhotos'
 import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { cn } from '@/lib/cn'
 import { PRICE_LABEL, type PriceLevel } from '@/types/models'
@@ -39,6 +42,18 @@ export function PlaceFormPage() {
   const { data: knownTags = [] } = useTags()
   const [tagNames, setTagNames] = useState<string[]>([])
 
+  // Фото нового места: цель подменяется на вызове, id появится после создания.
+  const [files, setFiles] = useState<File[]>([])
+  const { busy: sendingPhotos, upload } = useUploadPhotos({ placeId: id ?? '' }, id ?? '')
+  /**
+   * Место создано, а часть фото не долетела.
+   *
+   * Уводить на страницу места молча нельзя — человек решит, что фото просто
+   * не сохранились. Но и оставлять кнопку «Сохранить» нельзя тем более:
+   * повторное нажатие завело бы второе такое же место.
+   */
+  const [halfDone, setHalfDone] = useState<{ id: string; failed: number; reason: string } | null>(null)
+
   const form = useForm<PlaceFormValues>({
     resolver: zodResolver(placeSchema),
     defaultValues: EMPTY_PLACE,
@@ -65,7 +80,7 @@ export function PlaceFormPage() {
     setTagNames(place.tags.map((tag) => tag.name))
   }, [isEdit, place, form])
 
-  const busy = create.isPending || update.isPending
+  const busy = create.isPending || update.isPending || sendingPhotos
   const failure = create.error ?? update.error
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -79,6 +94,13 @@ export function PlaceFormPage() {
     } else {
       const created = await create.mutateAsync(input)
       await setTags.mutateAsync({ placeId: created.id, names: tagNames }).catch(() => undefined)
+
+      const photos = await upload(files, { placeId: created.id })
+      if (photos.failed.length) {
+        setHalfDone({ id: created.id, failed: photos.failed.length, reason: photos.failed[0].error })
+        return
+      }
+
       void navigate(`/place/${created.id}`, { replace: true })
     }
   })
@@ -147,6 +169,22 @@ export function PlaceFormPage() {
             />
           )}
         />
+      </Section>
+
+      {/* Ф-1: блок фото стоит после адреса, как в макете. У сохранённого места
+          id уже есть, и файл уходит сразу; у нового крепить пока не к чему,
+          поэтому файлы ждут сохранения (Р-21). */}
+      <Section>
+        {isEdit && id ? (
+          <PhotoUploader placeId={id} target={{ placeId: id }} desktop={isDesktop} />
+        ) : (
+          <PendingPhotos
+            files={files}
+            onChange={setFiles}
+            desktop={isDesktop}
+            hint="Отправим сразу после сохранения — фото крепится к месту, а его ещё нет."
+          />
+        )}
       </Section>
     </>
   )
@@ -221,9 +259,28 @@ export function PlaceFormPage() {
         </div>
       ) : null}
 
-      <Button type="submit" disabled={busy} className={cn('w-full', isDesktop ? 'mt-7 h-[54px]' : 'mt-7')}>
-        {busy ? 'Сохраняем…' : isEdit ? 'Сохранить изменения' : 'Сохранить место'}
-      </Button>
+      {halfDone ? (
+        <div className="mt-5 rounded-card bg-surface-2 px-4 py-3.5">
+          <div className="text-[13.5px] leading-relaxed text-[#FF7A6B]">
+            Место сохранено, но {halfDone.failed} {pluralPhotos(halfDone.failed)} не загрузилось: {halfDone.reason}
+          </div>
+          <div className="mt-1.5 text-[12.5px] leading-relaxed text-fg-dim">
+            Форму можно закрывать — повторное сохранение завело бы второе такое же место. Фото добавляются на
+            странице места.
+          </div>
+          <Link
+            to={`/place/${halfDone.id}`}
+            replace
+            className="mt-3 inline-block text-[13.5px] font-semibold text-accent"
+          >
+            Открыть место →
+          </Link>
+        </div>
+      ) : (
+        <Button type="submit" disabled={busy} className={cn('w-full', isDesktop ? 'mt-7 h-[54px]' : 'mt-7')}>
+          {busy ? (sendingPhotos ? 'Отправляем фото…' : 'Сохраняем…') : isEdit ? 'Сохранить изменения' : 'Сохранить место'}
+        </Button>
+      )}
     </>
   )
 
@@ -270,4 +327,13 @@ export function PlaceFormPage() {
 
 function Section({ children }: { children: ReactNode }) {
   return <div className="mt-6">{children}</div>
+}
+
+function pluralPhotos(n: number): string {
+  const mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 14) return 'фотографий'
+  const mod10 = n % 10
+  if (mod10 === 1) return 'фотография'
+  if (mod10 >= 2 && mod10 <= 4) return 'фотографии'
+  return 'фотографий'
 }
