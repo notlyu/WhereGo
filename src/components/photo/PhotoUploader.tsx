@@ -72,7 +72,8 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
       if (!ids) return
       reorder.mutate(ids, {
         // Список уже перечитан (см. `useReorderPhotos`) — свой порядок больше
-        // не нужен. При сбое тем более: показываем то, что в базе.
+        // не нужен. При сбое тем более: показываем то, что в базе, а не то,
+        // что человек хотел получить.
         onSettled: () => {
           orderRef.current = null
           setOrder(null)
@@ -180,9 +181,17 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
         }}
       />
 
+      {/* Ф-9: порядок не записался — плитка вернулась на место, и без этой
+          строки было бы непонятно, почему. Молчаливый откат читается как
+          «перетаскивание сломано», а не как «запрос не прошёл». */}
+      {reorder.error ? (
+        <div className="mt-2.5 text-[12.5px] leading-relaxed text-[#FF7A6B]">{orderError(reorder.error)}</div>
+      ) : null}
+
       {compact ? null : (
         <div className="mt-2.5 text-[12.5px] leading-relaxed text-fg-dim">
           Ужимаем до 1600px и WebP прямо в браузере — в хранилище уходит около 200 КБ вместо трёх мегабайт.
+          {own.length > 1 ? ' Порядок меняется перетаскиванием за уголок — первое фото становится обложкой.' : ''}
         </div>
       )}
     </div>
@@ -262,4 +271,19 @@ function PhotoTile({
       ) : null}
     </div>
   )
+}
+
+/**
+ * Понятная причина вместо кода ошибки PostgREST.
+ *
+ * Самый вероятный случай — в базе нет функции `set_photo_order`: код уехал
+ * на боевой сайт, а миграция 0003 ещё не применялась. Снаружи это выглядит
+ * как «перетаскивание не работает», хотя работает всё, кроме записи.
+ */
+function orderError(cause: unknown): string {
+  const текст = cause instanceof Error ? cause.message : String(cause)
+  if (/set_photo_order|PGRST202|function.*does not exist/i.test(текст)) {
+    return 'Порядок не сохранён: в базе нет функции set_photo_order. Примените миграцию 0003_photo_order.sql в SQL Editor.'
+  }
+  return `Порядок не сохранён: ${текст}`
 }
