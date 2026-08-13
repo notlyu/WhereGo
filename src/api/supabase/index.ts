@@ -598,11 +598,14 @@ export const supabaseBackend: Backend = {
       // Ф-9: не update, а функция с security definer — политики на photos
       // разрешают трогать только своё, а порядок у общего места общий.
       // Типы `database.ts` про функцию узнают после `pnpm types:gen`.
-      const rpc = supabase.rpc as unknown as (
-        name: string,
-        args: unknown,
-      ) => Promise<{ error: { message: string } | null }>
-      const { error } = await rpc('set_photo_order', { p_ids: ids })
+      // Приводим клиент, а не метод: `supabase.rpc` внутри обращается к
+      // `this.rest`, и вызов через отдельную переменную теряет `this` —
+      // падает на «can't access property "rest"». Метод должен остаться
+      // методом. Типы про функцию узнают после `pnpm types:gen`.
+      const client = supabase as unknown as {
+        rpc(name: string, args: unknown): Promise<{ error: { message: string } | null }>
+      }
+      const { error } = await client.rpc('set_photo_order', { p_ids: ids })
       if (error) throw new ApiError(error.message)
     },
 
