@@ -220,6 +220,24 @@ export function useDeletePhoto(placeId: string) {
   })
 }
 
+/** Ф-9: новый порядок фотографий. Первая становится обложкой места. */
+export function useReorderPhotos(placeId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => photosApi.reorder(ids),
+    // Возвращаем промис: react-query дождётся обновления списка, и только
+    // потом мутация считается завершённой. Иначе плитки на мгновение
+    // прыгали бы обратно — свой порядок уже сброшен, а новый ещё не пришёл.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.photos(placeId) }),
+        // Обложка — первое фото по порядку, поэтому меняется и лента.
+        queryClient.invalidateQueries({ queryKey: queryKeys.places }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.place(placeId) }),
+      ]),
+  })
+}
+
 /** Счётчик занятого места: на бесплатном тарифе Supabase это 1 ГБ на всё. */
 export function useStorageUsage() {
   return useQuery({

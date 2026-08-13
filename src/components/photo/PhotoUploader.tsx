@@ -1,12 +1,14 @@
-import { ImagePlus, Loader2, Trash2, TriangleAlert } from 'lucide-react'
+import { GripVertical, ImagePlus, Loader2, Trash2, TriangleAlert } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 
 import type { PhotoTarget } from '@/api/backend'
 import { useAuth } from '@/hooks/auth-context'
-import { useDeletePhoto, usePhotos } from '@/hooks/queries'
+import { useDeletePhoto, usePhotos, useReorderPhotos } from '@/hooks/queries'
 import { useUploadPhotos } from '@/hooks/useUploadPhotos'
 import { cn } from '@/lib/cn'
 import { MAX_PHOTOS_PER_PLACE, type Photo } from '@/types/models'
+
+import { moveItem, useDragSort } from './useDragSort'
 
 interface Props {
   placeId: string
@@ -24,10 +26,11 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
   const { profile } = useAuth()
   const { data: photos = [] } = usePhotos(placeId)
   const remove = useDeletePhoto(placeId)
+  const reorder = useReorderPhotos(placeId)
   const { items, busy, upload, clearDone } = useUploadPhotos(target, placeId)
 
   const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
+  const [hovering, setHovering] = useState(false)
 
   // Загруженные показывает уже сам список фото — очередь чистим,
   // чтобы карточка не двоилась.
@@ -36,10 +39,47 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
   }, [busy, items, clearDone])
 
   // Запрос отдаёт фото места и фото всех его отзывов — берём только свою пачку.
-  const own = photos.filter((photo) =>
+  const stored = photos.filter((photo) =>
     target.placeId ? photo.placeId === target.placeId : photo.reviewId === target.reviewId,
   )
+
+  // Ф-9: пока идёт запись, порядок держим у себя — иначе плитка возвращалась
+  // бы на место при каждом обновлении запроса.
+  const [order, setOrder] = useState<string[] | null>(null)
+  // Тот же порядок в ref: перестановка и отправка случаются в одном такте,
+  // и состояние к моменту отправки ещё не обновилось.
+  const orderRef = useRef<string[] | null>(null)
+
+  // Фото, которых нет в нашем порядке — только что загруженные, — дописываем
+  // в конец. Без этого новый снимок не появился бы в сетке вовсе.
+  const own = order
+    ? [
+        ...order.flatMap((id) => stored.filter((photo) => photo.id === id)),
+        ...stored.filter((photo) => !order.includes(photo.id)),
+      ]
+    : stored
   const left = MAX_PHOTOS_PER_PLACE - own.length
+
+  const { containerRef, dragging, handleProps, keyProps } = useDragSort({
+    count: own.length,
+    onMove: (from, to) => {
+      const next = moveItem(own, from, to).map((photo) => photo.id)
+      orderRef.current = next
+      setOrder(next)
+    },
+    onCommit: () => {
+      const ids = orderRef.current
+      if (!ids) return
+      reorder.mutate(ids, {
+        // Список уже перечитан (см. `useReorderPhotos`) — свой порядок больше
+        // не нужен. При сбое тем более: показываем то, что в базе.
+        onSettled: () => {
+          orderRef.current = null
+          setOrder(null)
+        },
+      })
+    },
+  })
   const pending = items.filter((item) => item.status !== 'done')
 
   function accept(fileList: FileList | null) {
@@ -50,7 +90,7 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
 
   function onDrop(event: DragEvent) {
     event.preventDefault()
-    setDragging(false)
+    setHovering(false)
     accept(event.dataTransfer.files)
   }
 
@@ -65,11 +105,17 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
         </div>
       )}
 
-      <div className={cn('grid gap-2.5', compact ? 'grid-cols-4' : 'grid-cols-3')}>
-        {own.map((photo) => (
+      <div ref={containerRef} className={cn('grid gap-2.5', compact ? 'grid-cols-4' : 'grid-cols-3')}>
+        {own.map((photo, index) => (
           <PhotoTile
             key={photo.id}
             photo={photo}
+            index={index}
+            cover={index === 0 && Boolean(target.placeId)}
+            dragging={dragging === index}
+            sortable={own.length > 1}
+            handleProps={handleProps(index)}
+            keyProps={keyProps(index)}
             canDelete={photo.uploadedBy === profile?.id}
             onDelete={() => remove.mutate(photo.id)}
             onOpen={onOpen ? () => onOpen(photo.id) : undefined}
@@ -103,13 +149,13 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
             onClick={() => inputRef.current?.click()}
             onDragOver={(event) => {
               event.preventDefault()
-              setDragging(true)
+              setHovering(true)
             }}
-            onDragLeave={() => setDragging(false)}
+            onDragLeave={() => setHovering(false)}
             onDrop={onDrop}
             className={cn(
               'flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-[1.5px] border-dashed px-2 text-center transition-colors',
-              dragging ? 'border-accent bg-accent/5 text-accent' : 'border-border-4 text-fg-dimmer hover:border-accent hover:text-accent',
+              hovering ? 'border-accent bg-accent/5 text-accent' : 'border-border-4 text-fg-dimmer hover:border-accent hover:text-accent',
             )}
           >
             <ImagePlus size={compact ? 16 : 20} />
@@ -145,17 +191,36 @@ export function PhotoUploader({ placeId, target, desktop = false, compact = fals
 
 function PhotoTile({
   photo,
+  index,
+  cover,
+  dragging,
+  sortable,
+  handleProps,
+  keyProps,
   canDelete,
   onDelete,
   onOpen,
 }: {
   photo: Photo
+  index: number
+  /** Первая по порядку — обложка места. У фото отзыва обложки нет. */
+  cover: boolean
+  dragging: boolean
+  sortable: boolean
+  handleProps: Record<string, unknown>
+  keyProps: Record<string, unknown>
   canDelete: boolean
   onDelete: () => void
   onOpen?: () => void
 }) {
   return (
-    <div className="group relative aspect-square overflow-hidden rounded-card bg-surface-2">
+    <div
+      data-sort-index={index}
+      className={cn(
+        'group relative aspect-square overflow-hidden rounded-card bg-surface-2 transition-transform',
+        dragging && 'scale-[1.06] ring-2 ring-accent',
+      )}
+    >
       <img
         src={photo.url}
         alt=""
@@ -165,6 +230,26 @@ function PhotoTile({
         onClick={onOpen}
         className={cn('h-full w-full object-cover', onOpen && 'cursor-zoom-in')}
       />
+
+      {/* Ф-9: обложку видно без объяснений — она подписана. */}
+      {cover ? (
+        <div className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-pill bg-accent px-2 py-1 text-[10px] font-bold text-on-accent">
+          главное
+        </div>
+      ) : null}
+
+      {sortable ? (
+        <button
+          type="button"
+          aria-label={`Переставить фото ${index + 1}. Стрелки влево и вправо двигают его`}
+          className="absolute bottom-1.5 right-1.5 flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded-pill bg-bg/70 text-fg-muted backdrop-blur-md transition-colors hover:text-fg active:cursor-grabbing"
+          {...handleProps}
+          {...keyProps}
+        >
+          <GripVertical size={13} />
+        </button>
+      ) : null}
+
       {canDelete ? (
         <button
           type="button"

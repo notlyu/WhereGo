@@ -1,8 +1,10 @@
-import { ImagePlus, X } from 'lucide-react'
+import { GripVertical, ImagePlus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/cn'
 import { MAX_PHOTOS_PER_PLACE } from '@/types/models'
+
+import { moveItem, useDragSort } from './useDragSort'
 
 /**
  * Выбранные, но ещё не отправленные файлы.
@@ -26,8 +28,32 @@ export function PendingPhotos({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previews, setPreviews] = useState<string[]>([])
-  const [dragging, setDragging] = useState(false)
+  /**
+   * Постоянный ключ на каждый файл.
+   *
+   * По имени и позиции ключ не годится: перестановка меняет позицию, React
+   * считает плитку новой и пересобирает её — прямо посреди перетаскивания.
+   * Ручка, за которую тянут, при этом исчезает, и жест обрывается на первом
+   * же шаге. `File` при перестановке остаётся тем же объектом, поэтому
+   * ключи держим у самих файлов.
+   */
+  const keys = useRef(new WeakMap<File, string>())
+  const keyOf = (file: File) => {
+    let key = keys.current.get(file)
+    if (!key) {
+      key = crypto.randomUUID()
+      keys.current.set(file, key)
+    }
+    return key
+  }
+  const [hovering, setHovering] = useState(false)
   const left = MAX_PHOTOS_PER_PLACE - files.length
+
+  // Ф-9: порядок задаётся здесь же — первым уйдёт то, что станет обложкой.
+  const { containerRef, dragging, handleProps, keyProps } = useDragSort({
+    count: files.length,
+    onMove: (from, to) => onChange(moveItem(files, from, to)),
+  })
 
   // Превью — ссылки на объекты в памяти вкладки. Браузер сам их не отпустит:
   // отзываем на каждой смене набора и при уходе с формы, иначе картинки
@@ -53,10 +79,36 @@ export function PendingPhotos({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div ref={containerRef} className="grid grid-cols-3 gap-2.5">
         {files.map((file, index) => (
-          <div key={`${file.name}-${index}`} className="relative aspect-square overflow-hidden rounded-card bg-surface-1">
+          <div
+            key={keyOf(file)}
+            data-sort-index={index}
+            className={cn(
+              'relative aspect-square overflow-hidden rounded-card bg-surface-1 transition-transform',
+              dragging === index && 'scale-[1.06] ring-2 ring-accent',
+            )}
+          >
             {previews[index] ? <img src={previews[index]} alt="" className="h-full w-full object-cover" /> : null}
+
+            {index === 0 ? (
+              <div className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-pill bg-accent px-2 py-1 text-[10px] font-bold text-on-accent">
+                главное
+              </div>
+            ) : null}
+
+            {files.length > 1 ? (
+              <button
+                type="button"
+                aria-label={`Переставить фото ${index + 1}. Стрелки влево и вправо двигают его`}
+                className="absolute right-1.5 bottom-1.5 flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded-pill bg-bg/70 text-fg-muted backdrop-blur-md transition-colors hover:text-fg active:cursor-grabbing"
+                {...handleProps(index)}
+                {...keyProps(index)}
+              >
+                <GripVertical size={13} />
+              </button>
+            ) : null}
+
             <button
               type="button"
               onClick={() => onChange(files.filter((_, i) => i !== index))}
@@ -74,17 +126,17 @@ export function PendingPhotos({
             onClick={() => inputRef.current?.click()}
             onDragOver={(event) => {
               event.preventDefault()
-              setDragging(true)
+              setHovering(true)
             }}
-            onDragLeave={() => setDragging(false)}
+            onDragLeave={() => setHovering(false)}
             onDrop={(event) => {
               event.preventDefault()
-              setDragging(false)
+              setHovering(false)
               accept(event.dataTransfer.files)
             }}
             className={cn(
               'flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-card border-[1.5px] border-dashed px-2 text-center transition-colors',
-              dragging
+              hovering
                 ? 'border-accent bg-accent/5 text-accent'
                 : 'border-border-4 text-fg-dimmer hover:border-accent hover:text-accent',
             )}

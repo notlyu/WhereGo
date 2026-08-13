@@ -594,6 +594,18 @@ export const supabaseBackend: Backend = {
       return toPhoto(data)
     },
 
+    async reorder(ids) {
+      // Ф-9: не update, а функция с security definer — политики на photos
+      // разрешают трогать только своё, а порядок у общего места общий.
+      // Типы `database.ts` про функцию узнают после `pnpm types:gen`.
+      const rpc = supabase.rpc as unknown as (
+        name: string,
+        args: unknown,
+      ) => Promise<{ error: { message: string } | null }>
+      const { error } = await rpc('set_photo_order', { p_ids: ids })
+      if (error) throw new ApiError(error.message)
+    },
+
     async remove(id) {
       const { data: row, error: findError } = await supabase.from('photos').select('r2_key').eq('id', id).maybeSingle()
       if (findError) throw new ApiError(findError.message)

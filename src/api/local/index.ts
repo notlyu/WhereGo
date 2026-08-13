@@ -525,6 +525,16 @@ export const localBackend: Backend = {
       return photo
     },
 
+    async reorder(ids) {
+      requireSession()
+      const store = read()
+      const позиция = new Map(ids.map((id, index) => [id, index]))
+      store.photos = (store.photos ?? []).map((photo) =>
+        позиция.has(photo.id) ? { ...photo, sortOrder: позиция.get(photo.id) as number } : photo,
+      )
+      write(store)
+    },
+
     async remove(id) {
       const me = requireSession()
       const store = read()

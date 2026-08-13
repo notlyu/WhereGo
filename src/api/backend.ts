@@ -107,6 +107,13 @@ export interface Backend {
     upload(target: PhotoTarget, blob: Blob, size: { width: number; height: number }): Promise<Photo>
     /** Ф-5: удаляется и запись, и сам файл. */
     remove(id: string): Promise<void>
+    /**
+     * Ф-9: новый порядок фотографий. Первая в списке — обложка места.
+     *
+     * Порядок общий, как и статус места: снимки лежат у общего места, и
+     * переставлять их могут оба — отсюда отдельная функция в БД.
+     */
+    reorder(ids: string[]): Promise<void>
     /** Сколько занято в хранилище — для счётчика в настройках. */
     usage(): Promise<{ files: number; bytes: number }>
   }
